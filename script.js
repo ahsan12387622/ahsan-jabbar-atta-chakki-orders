@@ -26,7 +26,8 @@ function initFirebase(callback) {
         firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
         firebaseReady = true;
-      } catch (e) { console.log(e); }
+        console.log('Firebase ready');
+      } catch (e) { console.log('Firebase error:', e); }
       if (callback) callback();
     };
     document.head.appendChild(script2);
@@ -50,7 +51,6 @@ var currentDeliverProduct = null;
 // ================== FIREBASE SYNC ==================
 function loadAllData(callback) {
   if (!firebaseReady) { if (callback) callback(); return; }
-
   var pending = 5;
   function done() { pending--; if (pending === 0 && callback) callback(); }
 
@@ -58,18 +58,18 @@ function loadAllData(callback) {
     shopkeepers = [];
     snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; shopkeepers.push(d); });
     done();
-  }).catch(function() { done(); });
+  }).catch(function(e) { console.log(e); done(); });
 
   db.collection('orders').get().then(function(snap) {
     orders = [];
     snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; orders.push(d); });
     done();
-  }).catch(function() { done(); });
+  }).catch(function(e) { console.log(e); done(); });
 
   db.collection('settings').doc('products').get().then(function(doc) {
     if (doc.exists) products = doc.data().list || products;
     done();
-  }).catch(function() { done(); });
+  }).catch(function(e) { done(); });
 
   db.collection('settings').doc('business').get().then(function(doc) {
     if (doc.exists) {
@@ -78,13 +78,13 @@ function loadAllData(callback) {
       if (d.mode) settings.mode = d.mode;
     }
     done();
-  }).catch(function() { done(); });
+  }).catch(function(e) { done(); });
 
   db.collection('users').get().then(function(snap) {
     users = [];
     snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; users.push(d); });
     done();
-  }).catch(function() { done(); });
+  }).catch(function(e) { done(); });
 }
 
 function saveToFirebase(collection, id, data) {
@@ -110,20 +110,71 @@ function can(permission) {
   return currentUser.perms[permission] === true;
 }
 
+// ================== SIGNUP ==================
+function doSignup() {
+  var user = document.getElementById('signupUser').value.trim();
+  var pass = document.getElementById('signupPass').value;
+  var pass2 = document.getElementById('signupPass2').value;
+  var err = document.getElementById('loginError');
+  err.textContent = '';
+
+  if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
+  if (pass.length < 4) { err.textContent = 'Password kam az kam 4 characters'; return; }
+  if (pass !== pass2) { err.textContent = 'Password match nahi kar rahe'; return; }
+  if (!firebaseReady) { err.textContent = 'Firebase load nahi hua. Page refresh karein.'; return; }
+
+  err.textContent = 'Account bana rahe hain...';
+
+  db.collection('users').where('user', '==', user).get().then(function(snap) {
+    if (!snap.empty) {
+      err.textContent = 'Ye username pehle se mojood hai';
+      return;
+    }
+    var adminUser = {
+      user: user,
+      pass: pass,
+      display: user,
+      isAdmin: true,
+      perms: { newOrder: true, deliver: true, shopkeepers: true, history: true, settings: true },
+      createdAt: new Date().toISOString()
+    };
+    db.collection('users').add(adminUser).then(function(ref) {
+      err.textContent = '';
+      alert('Admin account ban gaya! Ab login karein.');
+      hideSignup();
+      document.getElementById('loginUser').value = user;
+      document.getElementById('loginPass').value = '';
+      document.getElementById('loginPass').focus();
+    }).catch(function(e) {
+      console.log('Signup add error:', e);
+      err.textContent = 'Error: ' + e.message;
+    });
+  }).catch(function(e) {
+    console.log('Signup check error:', e);
+    err.textContent = 'Error: ' + e.message;
+  });
+}
+
 // ================== LOGIN ==================
 function doLogin() {
   var user = document.getElementById('loginUser').value.trim();
   var pass = document.getElementById('loginPass').value;
   var err = document.getElementById('loginError');
   err.textContent = '';
+
   if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
-  if (!firebaseReady) { err.textContent = 'Internet issue. Dobara try karein.'; return; }
-  err.textContent = 'Check...';
+  if (!firebaseReady) { err.textContent = 'Firebase load nahi hua. Refresh karein.'; return; }
+
+  err.textContent = 'Check kar rahe hain...';
 
   db.collection('users').where('user', '==', user).get().then(function(snap) {
     if (snap.empty) { err.textContent = 'Ghalat username ya password'; return; }
     var found = null;
-    snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; if (d.pass === pass) found = d; });
+    snap.forEach(function(doc) {
+      var d = doc.data();
+      d.id = doc.id;
+      if (d.pass === pass) found = d;
+    });
     if (!found) { err.textContent = 'Ghalat username ya password'; return; }
     err.textContent = '';
     currentUser = found;
@@ -131,35 +182,10 @@ function doLogin() {
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('currentUser', JSON.stringify(found));
     showApp();
-  }).catch(function() { err.textContent = 'Error. Dobara try karein.'; });
-}
-
-function doSignup() {
-  var user = document.getElementById('signupUser').value.trim();
-  var pass = document.getElementById('signupPass').value;
-  var pass2 = document.getElementById('signupPass2').value;
-  var err = document.getElementById('loginError');
-  err.textContent = '';
-  if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
-  if (pass.length < 4) { err.textContent = 'Password kam az kam 4 characters'; return; }
-  if (pass !== pass2) { err.textContent = 'Password match nahi kar rahe'; return; }
-  if (!firebaseReady) { err.textContent = 'Internet issue.'; return; }
-
-  db.collection('users').where('user', '==', user).get().then(function(snap) {
-    if (!snap.empty) { err.textContent = 'Ye username pehle se mojood hai'; return; }
-    var adminUser = {
-      user: user, pass: pass, display: user, isAdmin: true,
-      perms: { newOrder: true, deliver: true, shopkeepers: true, history: true, settings: true },
-      createdAt: new Date().toISOString()
-    };
-    db.collection('users').add(adminUser).then(function(ref) {
-      alert('Admin account ban gaya!\nAb login karein.');
-      hideSignup();
-      document.getElementById('loginUser').value = user;
-      document.getElementById('loginPass').value = '';
-      document.getElementById('loginPass').focus();
-    }).catch(function() { err.textContent = 'Account nahi bana. Dobara try.'; });
-  }).catch(function() { err.textContent = 'Error.'; });
+  }).catch(function(e) {
+    console.log('Login error:', e);
+    err.textContent = 'Error: ' + e.message;
+  });
 }
 
 function showSignup() {
@@ -185,6 +211,7 @@ function doLogout() {
   document.getElementById('loginPass').value = '';
   hideSignup();
 }
+
 function changePassword() {
   var oldP = document.getElementById('oldPass').value;
   var newP = document.getElementById('newPass').value;
@@ -458,9 +485,9 @@ function saveUser() {
     db.collection('users').add(newUser).then(function(ref) {
       newUser.id = ref.id;
       users.push(newUser);
-      alert('User save ho gaya!\nAb woh kisi bhi device pe login kar sakta hai.');
+      alert('User save ho gaya!');
       resetUserForm(); renderUsers();
-    }).catch(function() { alert('Save nahi hua. Dobara try.'); });
+    }).catch(function(e) { alert('Error: ' + e.message); });
   } else {
     alert('Internet issue.');
   }
@@ -631,7 +658,7 @@ function saveShopkeeper() {
       shopkeepers.push(newShop);
       resetShopForm(); renderShopkeepers(); renderDashboard();
       alert('Shopkeeper save!');
-    }).catch(function() { alert('Save nahi hua.'); });
+    }).catch(function(e) { alert('Error: ' + e.message); });
   } else {
     alert('Internet issue.');
   }
@@ -823,7 +850,7 @@ function saveMultiOrder() {
       alert('Order save!\n' + shopName + '\n' + items.length + ' products');
       prepareOrderForm();
       document.getElementById('orderNotes').value = '';
-    }).catch(function() { alert('Save nahi hua.'); });
+    }).catch(function(e) { alert('Error: ' + e.message); });
   } else {
     alert('Internet issue.');
   }
@@ -1186,16 +1213,11 @@ function closeModal() {
 // ================== INIT ==================
 window.addEventListener('load', function() {
   applySettings();
-
-  // Firebase load karo, phir data sync karo
   initFirebase(function() {
     loadAllData(function() {
-      // Data load ho gaya
       var loggedIn = localStorage.getItem('isLoggedIn') === 'true';
       var cachedUser = JSON.parse(localStorage.getItem('currentUser'));
-
       if (loggedIn && cachedUser) {
-        // Verify user still exists in Firebase
         var stillExists = false;
         for (var i = 0; i < users.length; i++) {
           if (users[i].id === cachedUser.id) {
@@ -1210,7 +1232,6 @@ window.addEventListener('load', function() {
           return;
         }
       }
-      // Show login
       isLoggedIn = false;
       localStorage.setItem('isLoggedIn', 'false');
       localStorage.removeItem('currentUser');
