@@ -16,7 +16,7 @@
       <i class="fa fa-wheat-awn"></i>
     </div>
     <h1 id="loginTitle">Atta Chakki</h1>
-    <p class="login-sub" id="loginSub">Login karein apna data dekhne ke liye</p>
+    <p class="login-sub">Login karein apna data dekhne ke liye</p>
 
     <div class="form-group">
       <label><i class="fa fa-user"></i> Username</label>
@@ -34,13 +34,12 @@
       <i class="fa fa-sign-in-alt"></i> Login
     </button>
 
-    <div class="login-footer">
-      Pehli baar? <a href="#" onclick="showSignup()">Naya Account Banayein</a>
+    <div class="login-footer" id="signupLinkBox">
+      Pehli baar? <a href="#" onclick="showSignup()">Admin Account Banayein</a>
     </div>
 
-    <!-- SIGNUP SECTION (chhupa hua) -->
     <div id="signupSection" style="display:none; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 18px;">
-      <h3 style="margin-bottom:14px; color:#16a34a;">Naya Account Banayein</h3>
+      <h3 style="margin-bottom:14px; color:#16a34a;">Admin Account Banayein</h3>
       <div class="form-group">
         <label>Username</label>
         <input type="text" id="signupUser" placeholder="Username chunein" autocomplete="off" />
@@ -54,14 +53,14 @@
         <input type="password" id="signupPass2" placeholder="Password dobara" />
       </div>
       <button class="btn primary big" onclick="doSignup()">
-        <i class="fa fa-user-plus"></i> Account Banayein
+        <i class="fa fa-user-plus"></i> Admin Account Banayein
       </button>
       <button class="btn big" onclick="hideSignup()">Cancel</button>
     </div>
   </div>
 </div>
 
-<!-- ============ MAIN APP (login ke baad) ============ -->
+<!-- ============ MAIN APP ============ -->
 <div id="appWrapper" style="display:none;">
 
 <div class="topbar">
@@ -87,25 +86,15 @@
     <i class="fa fa-wheat-awn"></i>
     <span id="sidebarTitle">Atta Chakki</span>
   </div>
-  <nav class="sidebar-nav">
-    <button class="nav-btn" onclick="showPage('dashboard', this)">
-      <i class="fa fa-home"></i> <span>Dashboard</span>
-    </button>
-    <button class="nav-btn" onclick="showPage('shopkeepers', this)">
-      <i class="fa fa-users"></i> <span>Shopkeepers</span>
-    </button>
-    <button class="nav-btn" onclick="showPage('delivery', this)">
-      <i class="fa fa-check-circle"></i> <span>Delivery</span>
-    </button>
-    <button class="nav-btn" onclick="showPage('history', this)">
-      <i class="fa fa-clock"></i> <span>History</span>
-    </button>
-    <button class="nav-btn" onclick="showPage('settings', this)">
-      <i class="fa fa-gear"></i> <span>Settings</span>
-    </button>
-    <button class="nav-btn" onclick="doLogout()">
-      <i class="fa fa-sign-out-alt"></i> <span>Logout</span>
-    </button>
+  <div class="user-info-box" id="userInfoBox">
+    <i class="fa fa-user-circle"></i>
+    <div>
+      <div id="userNameLabel">User</div>
+      <div id="userRoleLabel" class="user-role">Staff</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav" id="sidebarNav">
+    <!-- dynamic -->
   </nav>
 </aside>
 
@@ -135,31 +124,19 @@
     <div class="cards">
       <div class="card blue">
         <div class="card-icon"><i class="fa fa-users"></i></div>
-        <div>
-          <h3 id="totalShopkeepers">0</h3>
-          <p>Shopkeepers</p>
-        </div>
+        <div><h3 id="totalShopkeepers">0</h3><p>Shopkeepers</p></div>
       </div>
       <div class="card orange">
         <div class="card-icon"><i class="fa fa-calendar-day"></i></div>
-        <div>
-          <h3 id="todayOrders">0</h3>
-          <p>Aaj ke Orders</p>
-        </div>
+        <div><h3 id="todayOrders">0</h3><p>Aaj ke Orders</p></div>
       </div>
       <div class="card red">
         <div class="card-icon"><i class="fa fa-hourglass-half"></i></div>
-        <div>
-          <h3 id="pendingOrders">0</h3>
-          <p>Pending</p>
-        </div>
+        <div><h3 id="pendingOrders">0</h3><p>Pending</p></div>
       </div>
       <div class="card green">
         <div class="card-icon"><i class="fa fa-check-circle"></i></div>
-        <div>
-          <h3 id="deliveredOrders">0</h3>
-          <p>Delivered</p>
-        </div>
+        <div><h3 id="deliveredOrders">0</h3><p>Delivered</p></div>
       </div>
     </div>
 
@@ -174,9 +151,7 @@
 
   <section id="neworder" class="page">
     <div class="page-header">
-      <button class="btn back-btn" onclick="showPage('dashboard')">
-        <i class="fa fa-arrow-left"></i> Wapas
-      </button>
+      <button class="btn back-btn" onclick="showPage('dashboard')"><i class="fa fa-arrow-left"></i> Wapas</button>
       <h1>Naya Order</h1>
       <p class="page-sub">Ek shopkeeper ke multiple products ek saath</p>
     </div>
@@ -217,9 +192,7 @@
 
   <section id="orders" class="page">
     <div class="page-header">
-      <button class="btn back-btn" onclick="showPage('dashboard')">
-        <i class="fa fa-arrow-left"></i> Wapas
-      </button>
+      <button class="btn back-btn" onclick="showPage('dashboard')"><i class="fa fa-arrow-left"></i> Wapas</button>
       <h1><i class="fa fa-truck"></i> Orders / Loading</h1>
       <p class="page-sub">Kis dukaan pe kitna maal dena hai</p>
     </div>
@@ -243,7 +216,7 @@
       <p class="page-sub">Apne tamam shopkeepers manage karein</p>
     </div>
 
-    <div class="box">
+    <div class="box" id="shopkeeperFormBox">
       <h3 id="shopFormTitle">Naya Shopkeeper Add Karein</h3>
       <input type="hidden" id="shopId" />
       <div class="form-row">
@@ -289,6 +262,65 @@
     <div id="historyList" class="list"></div>
   </section>
 
+  <!-- USERS MANAGEMENT (Sirf Admin) -->
+  <section id="users" class="page">
+    <div class="page-header">
+      <h1><i class="fa fa-user-shield"></i> Users Management</h1>
+      <p class="page-sub">Naye users banao aur unki permissions set karo</p>
+    </div>
+
+    <div class="box">
+      <h3 id="userFormTitle">Naya User Banayein</h3>
+      <input type="hidden" id="userId" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Username *</label>
+          <input type="text" id="newUserName" placeholder="Username" />
+        </div>
+        <div class="form-group">
+          <label>Password *</label>
+          <input type="text" id="newUserPass" placeholder="Password" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Display Name</label>
+        <input type="text" id="newUserDisplay" placeholder="Jaise: Ahmed (Muneer)" />
+      </div>
+
+      <h4 style="margin: 15px 0 10px; color:#16a34a;">Permissions (Kya kaam kar sakta hai?)</h4>
+      
+      <div class="permissions-grid">
+        <label class="perm-item">
+          <input type="checkbox" id="permNewOrder" checked />
+          <span><i class="fa fa-plus-circle"></i> Naya Order add karna</span>
+        </label>
+        <label class="perm-item">
+          <input type="checkbox" id="permDeliver" checked />
+          <span><i class="fa fa-check-circle"></i> Delivered mark karna</span>
+        </label>
+        <label class="perm-item">
+          <input type="checkbox" id="permShopkeepers" />
+          <span><i class="fa fa-users"></i> Shopkeepers add/edit karna</span>
+        </label>
+        <label class="perm-item">
+          <input type="checkbox" id="permHistory" checked />
+          <span><i class="fa fa-clock"></i> History dekhna</span>
+        </label>
+        <label class="perm-item">
+          <input type="checkbox" id="permSettings" />
+          <span><i class="fa fa-gear"></i> Settings change karna</span>
+        </label>
+      </div>
+
+      <button class="btn primary big" onclick="saveUser()">
+        <i class="fa fa-save"></i> User Save Karein
+      </button>
+      <button class="btn big" onclick="resetUserForm()">Cancel</button>
+    </div>
+
+    <div id="usersList" class="list"></div>
+  </section>
+
   <section id="settings" class="page">
     <div class="page-header">
       <h1>Settings</h1>
@@ -305,7 +337,7 @@
     </div>
 
     <div class="box">
-      <h3><i class="fa fa-user-lock"></i> Password Change</h3>
+      <h3><i class="fa fa-user-lock"></i> Apna Password Change</h3>
       <div class="form-group">
         <label>Purana Password</label>
         <input type="password" id="oldPass" placeholder="Purana password" />
@@ -348,8 +380,7 @@
   </section>
 
 </main>
-
-</div><!-- /appWrapper -->
+</div>
 
 <!-- MODAL: Shop History -->
 <div id="modal" class="modal">
@@ -360,7 +391,7 @@
   </div>
 </div>
 
-<!-- MODAL: Partial Delivery -->
+<!-- MODAL: Deliver -->
 <div id="deliverModal" class="modal">
   <div class="modal-content">
     <span class="close" onclick="closeDeliverModal()">&times;</span>
