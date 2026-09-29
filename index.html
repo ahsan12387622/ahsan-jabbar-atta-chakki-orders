@@ -9,6 +9,61 @@
 </head>
 <body>
 
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <i class="fa fa-wheat-awn"></i>
+    </div>
+    <h1 id="loginTitle">Atta Chakki</h1>
+    <p class="login-sub" id="loginSub">Login karein apna data dekhne ke liye</p>
+
+    <div class="form-group">
+      <label><i class="fa fa-user"></i> Username</label>
+      <input type="text" id="loginUser" placeholder="Username daalein" autocomplete="off" />
+    </div>
+
+    <div class="form-group">
+      <label><i class="fa fa-lock"></i> Password</label>
+      <input type="password" id="loginPass" placeholder="Password daalein" />
+    </div>
+
+    <div id="loginError" class="login-error"></div>
+
+    <button class="btn primary big" onclick="doLogin()">
+      <i class="fa fa-sign-in-alt"></i> Login
+    </button>
+
+    <div class="login-footer">
+      Pehli baar? <a href="#" onclick="showSignup()">Naya Account Banayein</a>
+    </div>
+
+    <!-- SIGNUP SECTION (chhupa hua) -->
+    <div id="signupSection" style="display:none; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 18px;">
+      <h3 style="margin-bottom:14px; color:#16a34a;">Naya Account Banayein</h3>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="signupUser" placeholder="Username chunein" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signupPass" placeholder="Password" />
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="signupPass2" placeholder="Password dobara" />
+      </div>
+      <button class="btn primary big" onclick="doSignup()">
+        <i class="fa fa-user-plus"></i> Account Banayein
+      </button>
+      <button class="btn big" onclick="hideSignup()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MAIN APP (login ke baad) ============ -->
+<div id="appWrapper" style="display:none;">
+
 <div class="topbar">
   <div class="topbar-logo">
     <i class="fa fa-wheat-awn"></i>
@@ -17,6 +72,9 @@
   <div class="topbar-actions">
     <button class="icon-btn" onclick="toggleMode()" title="Mobile/PC Mode">
       <i class="fa fa-mobile-screen" id="modeIcon"></i>
+    </button>
+    <button class="icon-btn" onclick="doLogout()" title="Logout">
+      <i class="fa fa-sign-out-alt"></i>
     </button>
     <button class="icon-btn menu-btn" onclick="toggleSidebar()">
       <i class="fa fa-bars"></i>
@@ -44,6 +102,9 @@
     </button>
     <button class="nav-btn" onclick="showPage('settings', this)">
       <i class="fa fa-gear"></i> <span>Settings</span>
+    </button>
+    <button class="nav-btn" onclick="doLogout()">
+      <i class="fa fa-sign-out-alt"></i> <span>Logout</span>
     </button>
   </nav>
 </aside>
@@ -244,6 +305,19 @@
     </div>
 
     <div class="box">
+      <h3><i class="fa fa-user-lock"></i> Password Change</h3>
+      <div class="form-group">
+        <label>Purana Password</label>
+        <input type="password" id="oldPass" placeholder="Purana password" />
+      </div>
+      <div class="form-group">
+        <label>Naya Password</label>
+        <input type="password" id="newPass" placeholder="Naya password" />
+      </div>
+      <button class="btn primary" onclick="changePassword()"><i class="fa fa-save"></i> Change</button>
+    </div>
+
+    <div class="box">
       <h3><i class="fa fa-mobile-screen"></i> Mode</h3>
       <p class="hint">Mobile ya PC mode</p>
       <div class="mode-switch">
@@ -274,6 +348,8 @@
   </section>
 
 </main>
+
+</div><!-- /appWrapper -->
 
 <!-- MODAL: Shop History -->
 <div id="modal" class="modal">
