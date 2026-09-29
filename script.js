@@ -49,6 +49,25 @@ function totalKgText(totalKg) {
   return qtyText(m, k);
 }
 
+// ** NAYA FUNCTION: Maund jama karo, Kg alag rakho **
+function productQtySummary(items) {
+  var totalMaund = 0;
+  var kgList = [];
+  for (var i = 0; i < items.length; i++) {
+    var m = parseInt(items[i].maund) || 0;
+    var k = parseInt(items[i].kg) || 0;
+    totalMaund += m;
+    if (k > 0) kgList.push(k);
+  }
+  var parts = [];
+  if (totalMaund > 0) parts.push(totalMaund + ' maund');
+  for (var i = 0; i < kgList.length; i++) {
+    parts.push(kgList[i] + ' kg');
+  }
+  if (parts.length === 0) return '0 kg';
+  return parts.join(' ');
+}
+
 function showPage(pageId, btn) {
   var pages = document.querySelectorAll('.page');
   for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
@@ -175,7 +194,7 @@ function deleteProduct(i) {
   prepareOrderForm();
 }
 
-// DASHBOARD - Har product ek hi line mein
+// DASHBOARD - Maund jama, Kg alag
 function renderDashboard() {
   var today = todayStr();
   var dateLabel = document.getElementById('todayDateLabel');
@@ -200,23 +219,23 @@ function renderDashboard() {
     return;
   }
 
+  // Product ke hisaab se group karo
   var byProduct = {};
   for (var i = 0; i < todayPending.length; i++) {
     var items = todayPending[i].items || [];
     for (var j = 0; j < items.length; j++) {
       var p = items[j].product;
       if (!byProduct[p]) byProduct[p] = [];
-      byProduct[p].push(qtyText(items[j].maund, items[j].kg));
+      byProduct[p].push({ maund: items[j].maund, kg: items[j].kg });
     }
   }
 
   var rows = '';
   var keys = Object.keys(byProduct);
   for (var k = 0; k < keys.length; k++) {
-    var qtyList = byProduct[keys[k]].join(', ');
     rows += '<div class="shop-order-line">' +
       '<span class="product-name">📦 ' + keys[k] + '</span>' +
-      '<span class="qty qty-scroll">' + qtyList + '</span>' +
+      '<span class="qty">' + productQtySummary(byProduct[keys[k]]) + '</span>' +
     '</div>';
   }
   list.innerHTML = rows;
@@ -485,7 +504,7 @@ function saveMultiOrder() {
   document.getElementById('orderNotes').value = '';
 }
 
-// ORDERS PAGE - Har product ek hi line mein
+// ORDERS PAGE - Maund jama, Kg alag
 function renderOrdersPage() {
   var dateVal = document.getElementById('ordersDate').value || todayStr();
   var statusFilter = document.getElementById('ordersStatus').value;
@@ -543,13 +562,14 @@ function renderOrdersPage() {
       if (sOrders[i].status === 'Pending') hasPending = true;
     }
 
+    // Maund jama, Kg alag
     var byProduct = {};
     for (var i = 0; i < sOrders.length; i++) {
       var items = sOrders[i].items || [];
       for (var j = 0; j < items.length; j++) {
         var p = items[j].product;
         if (!byProduct[p]) byProduct[p] = [];
-        byProduct[p].push(qtyText(items[j].maund, items[j].kg));
+        byProduct[p].push({ maund: items[j].maund, kg: items[j].kg });
       }
     }
 
@@ -558,7 +578,7 @@ function renderOrdersPage() {
     for (var kk = 0; kk < pKeys.length; kk++) {
       rowsHtml += '<div class="shop-order-line">' +
         '<span class="product-name">📦 ' + pKeys[kk] + '</span>' +
-        '<span class="qty qty-scroll">' + byProduct[pKeys[kk]].join(', ') + '</span>' +
+        '<span class="qty">' + productQtySummary(byProduct[pKeys[kk]]) + '</span>' +
       '</div>';
     }
 
