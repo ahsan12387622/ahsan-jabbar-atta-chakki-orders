@@ -1,8 +1,8 @@
-// ================== STORAGE ==================
-let shopkeepers = JSON.parse(localStorage.getItem('shopkeepers')) || [];
-let orders = JSON.parse(localStorage.getItem('orders')) || [];
-let products = JSON.parse(localStorage.getItem('products')) || ['Aata', 'Besan', 'Chawal ka Atta'];
-let settings = JSON.parse(localStorage.getItem('settings')) || { bizName: 'Atta Chakki', mode: 'auto' };
+// Data Storage
+var shopkeepers = JSON.parse(localStorage.getItem('shopkeepers')) || [];
+var orders = JSON.parse(localStorage.getItem('orders')) || [];
+var products = JSON.parse(localStorage.getItem('products')) || ['Aata', 'Besan', 'Chawal ka Atta'];
+var settings = JSON.parse(localStorage.getItem('settings')) || { bizName: 'Atta Chakki', mode: 'auto' };
 
 function saveData() {
   localStorage.setItem('shopkeepers', JSON.stringify(shopkeepers));
@@ -11,63 +11,65 @@ function saveData() {
   localStorage.setItem('settings', JSON.stringify(settings));
 }
 
-// ================== HELPERS ==================
 function todayStr() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  var d = new Date();
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
 }
 
 function formatDate(s) {
   if (!s) return '';
-  const d = new Date(s + 'T00:00:00');
+  var d = new Date(s + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function formatDateLong(s) {
-  const d = new Date(s + 'T00:00:00');
+  var d = new Date(s + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
+  var sb = document.getElementById('sidebar');
+  if (sb) sb.classList.toggle('open');
 }
 
-// Maund + Kg text (e.g. "2 maund 20 kg")
 function qtyText(maund, kg) {
-  const m = parseInt(maund) || 0;
-  const k = parseInt(kg) || 0;
+  var m = parseInt(maund) || 0;
+  var k = parseInt(kg) || 0;
   if (m === 0 && k === 0) return '0 kg';
-  const parts = [];
+  var parts = [];
   if (m > 0) parts.push(m + ' maund');
   if (k > 0) parts.push(k + ' kg');
   return parts.join(' ');
 }
 
-// Total kg -> "2 maund 20 kg" format
 function totalKgText(totalKg) {
-  const total = parseInt(totalKg) || 0;
-  const m = Math.floor(total / 40);
-  const k = total % 40;
+  var total = parseInt(totalKg) || 0;
+  var m = Math.floor(total / 40);
+  var k = total % 40;
   return qtyText(m, k);
 }
 
-// ================== NAVIGATION ==================
 function showPage(pageId, btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const target = document.getElementById(pageId);
+  var pages = document.querySelectorAll('.page');
+  for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
+  var target = document.getElementById(pageId);
   if (target) target.classList.add('active');
 
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  var navBtns = document.querySelectorAll('.nav-btn');
+  for (var j = 0; j < navBtns.length; j++) navBtns[j].classList.remove('active');
   if (btn) btn.classList.add('active');
 
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) sidebar.classList.remove('open');
+  var sb = document.getElementById('sidebar');
+  if (sb) sb.classList.remove('open');
 
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'shopkeepers') renderShopkeepers();
   if (pageId === 'neworder') prepareOrderForm();
   if (pageId === 'orders') {
-    const dEl = document.getElementById('ordersDate');
+    var dEl = document.getElementById('ordersDate');
     if (dEl && !dEl.value) dEl.value = todayStr();
     renderOrdersPage();
   }
@@ -75,18 +77,17 @@ function showPage(pageId, btn) {
   if (pageId === 'history') renderHistory();
   if (pageId === 'settings') renderSettings();
 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo(0, 0);
 }
 
-// ================== SETTINGS ==================
 function applySettings() {
-  const t1 = document.getElementById('topbarTitle');
-  const t2 = document.getElementById('sidebarTitle');
+  var t1 = document.getElementById('topbarTitle');
+  var t2 = document.getElementById('sidebarTitle');
   if (t1) t1.textContent = settings.bizName;
   if (t2) t2.textContent = settings.bizName;
-  document.title = settings.bizName + ' - Order Management';
+  document.title = settings.bizName;
 
-  const body = document.body;
+  var body = document.body;
   body.classList.remove('mobile-mode', 'pc-mode');
 
   if (settings.mode === 'mobile') {
@@ -108,13 +109,15 @@ function setMode(m) {
 }
 
 function toggleMode() {
-  settings.mode = settings.mode === 'mobile' ? 'pc' : 'mobile';
+  if (settings.mode === 'mobile') settings.mode = 'pc';
+  else settings.mode = 'mobile';
   saveData();
   applySettings();
 }
 
 function saveBizName() {
-  const name = document.getElementById('setBizName').value.trim();
+  var el = document.getElementById('setBizName');
+  var name = el.value.trim();
   if (!name) { alert('Naam likhein'); return; }
   settings.bizName = name;
   saveData();
@@ -123,35 +126,43 @@ function saveBizName() {
 }
 
 function renderSettings() {
-  const nameEl = document.getElementById('setBizName');
+  var nameEl = document.getElementById('setBizName');
   if (nameEl) nameEl.value = settings.bizName;
 
-  const pcBtn = document.getElementById('modePC');
-  const mobBtn = document.getElementById('modeMobile');
-  if (pcBtn) pcBtn.classList.toggle('active', settings.mode === 'pc');
-  if (mobBtn) mobBtn.classList.toggle('active', settings.mode === 'mobile');
+  var pcBtn = document.getElementById('modePC');
+  var mobBtn = document.getElementById('modeMobile');
+  if (pcBtn) {
+    if (settings.mode === 'pc') pcBtn.classList.add('active');
+    else pcBtn.classList.remove('active');
+  }
+  if (mobBtn) {
+    if (settings.mode === 'mobile') mobBtn.classList.add('active');
+    else mobBtn.classList.remove('active');
+  }
 
   renderProductsList();
 }
 
 function renderProductsList() {
-  const list = document.getElementById('productsList');
+  var list = document.getElementById('productsList');
   if (!list) return;
   if (products.length === 0) {
     list.innerHTML = '<p class="hint">Koi product nahi.</p>';
     return;
   }
-  list.innerHTML = products.map((p, i) =>
-    '<div class="product-chip">' + p +
-    '<button onclick="deleteProduct(' + i + ')">&times;</button></div>'
-  ).join('');
+  var html = '';
+  for (var i = 0; i < products.length; i++) {
+    html += '<div class="product-chip">' + products[i] +
+      '<button onclick="deleteProduct(' + i + ')">&times;</button></div>';
+  }
+  list.innerHTML = html;
 }
 
 function addProduct() {
-  const input = document.getElementById('newProductName');
-  const name = input.value.trim();
+  var input = document.getElementById('newProductName');
+  var name = input.value.trim();
   if (!name) { alert('Naam likhein'); return; }
-  if (products.includes(name)) { alert('Already mojood hai'); return; }
+  if (products.indexOf(name) !== -1) { alert('Already mojood hai'); return; }
   products.push(name);
   saveData();
   input.value = '';
@@ -167,56 +178,59 @@ function deleteProduct(i) {
   prepareOrderForm();
 }
 
-// ================== DASHBOARD ==================
 function renderDashboard() {
-  const today = todayStr();
-  const dateLabel = document.getElementById('todayDateLabel');
+  var today = todayStr();
+  var dateLabel = document.getElementById('todayDateLabel');
   if (dateLabel) dateLabel.textContent = formatDateLong(today);
 
   document.getElementById('totalShopkeepers').textContent = shopkeepers.length;
-  document.getElementById('todayOrders').textContent = orders.filter(o => o.date === today).length;
-  document.getElementById('pendingOrders').textContent = orders.filter(o => o.status === 'Pending').length;
-  document.getElementById('deliveredOrders').textContent = orders.filter(o => o.status === 'Delivered').length;
+  document.getElementById('todayOrders').textContent = orders.filter(function(o) { return o.date === today; }).length;
+  document.getElementById('pendingOrders').textContent = orders.filter(function(o) { return o.status === 'Pending'; }).length;
+  document.getElementById('deliveredOrders').textContent = orders.filter(function(o) { return o.status === 'Delivered'; }).length;
 
-  const todayPending = orders.filter(o => o.date === today && o.status === 'Pending');
-  const totalKg = todayPending.reduce((s, o) => s + (o.totalKg || 0), 0);
+  var todayPending = orders.filter(function(o) { return o.date === today && o.status === 'Pending'; });
+  var totalKg = 0;
+  for (var i = 0; i < todayPending.length; i++) {
+    totalKg += todayPending[i].totalKg || 0;
+  }
 
   document.getElementById('todayLoadBadge').textContent = totalKgText(totalKg);
 
-  const list = document.getElementById('todayLoadList');
+  var list = document.getElementById('todayLoadList');
   if (todayPending.length === 0) {
     list.innerHTML = '<div class="empty"><i class="fa fa-check-circle"></i>Aaj koi pending order nahi.</div>';
     return;
   }
 
-  // ** HAR ENTRY ALAG ALAG DIKHAO **
-  const rows = [];
-  todayPending.forEach(o => {
-    (o.items || []).forEach(it => {
-      rows.push(
-        '<div class="shop-order-line">' +
-          '<span class="product-name">📦 ' + it.product + '</span>' +
-          '<span class="qty">' + qtyText(it.maund, it.kg) + '</span>' +
-        '</div>'
-      );
-    });
-  });
-
-  list.innerHTML = rows.join('');
+  var rows = '';
+  for (var i = 0; i < todayPending.length; i++) {
+    var items = todayPending[i].items || [];
+    for (var j = 0; j < items.length; j++) {
+      rows += '<div class="shop-order-line">' +
+        '<span class="product-name">📦 ' + items[j].product + '</span>' +
+        '<span class="qty">' + qtyText(items[j].maund, items[j].kg) + '</span>' +
+      '</div>';
+    }
+  }
+  list.innerHTML = rows;
 }
 
-// ================== SHOPKEEPERS ==================
 function saveShopkeeper() {
-  const id = document.getElementById('shopId').value;
-  const name = document.getElementById('shopName').value.trim();
-  const mobile = document.getElementById('shopMobile').value.trim();
-  const address = document.getElementById('shopAddress').value.trim();
+  var id = document.getElementById('shopId').value;
+  var name = document.getElementById('shopName').value.trim();
+  var mobile = document.getElementById('shopMobile').value.trim();
+  var address = document.getElementById('shopAddress').value.trim();
 
   if (!name || !mobile) { alert('Naam aur mobile zaroori!'); return; }
 
   if (id) {
-    const s = shopkeepers.find(x => x.id == id);
-    s.name = name; s.mobile = mobile; s.address = address;
+    for (var i = 0; i < shopkeepers.length; i++) {
+      if (shopkeepers[i].id == id) {
+        shopkeepers[i].name = name;
+        shopkeepers[i].mobile = mobile;
+        shopkeepers[i].address = address;
+      }
+    }
   } else {
     shopkeepers.push({ id: Date.now(), name: name, mobile: mobile, address: address });
   }
@@ -236,33 +250,49 @@ function resetShopForm() {
 }
 
 function editShopkeeper(id) {
-  const s = shopkeepers.find(x => x.id == id);
-  document.getElementById('shopId').value = s.id;
-  document.getElementById('shopName').value = s.name;
-  document.getElementById('shopMobile').value = s.mobile;
-  document.getElementById('shopAddress').value = s.address || '';
-  document.getElementById('shopFormTitle').textContent = 'Edit Karein';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  for (var i = 0; i < shopkeepers.length; i++) {
+    if (shopkeepers[i].id == id) {
+      var s = shopkeepers[i];
+      document.getElementById('shopId').value = s.id;
+      document.getElementById('shopName').value = s.name;
+      document.getElementById('shopMobile').value = s.mobile;
+      document.getElementById('shopAddress').value = s.address || '';
+      document.getElementById('shopFormTitle').textContent = 'Edit Karein';
+    }
+  }
+  window.scrollTo(0, 0);
 }
 
 function deleteShopkeeper(id) {
   if (!confirm('Pakka delete?')) return;
-  shopkeepers = shopkeepers.filter(x => x.id != id);
+  var newList = [];
+  for (var i = 0; i < shopkeepers.length; i++) {
+    if (shopkeepers[i].id != id) newList.push(shopkeepers[i]);
+  }
+  shopkeepers = newList;
   saveData();
   renderShopkeepers();
   renderDashboard();
 }
 
 function renderShopkeepers() {
-  const list = document.getElementById('shopkeepersList');
+  var list = document.getElementById('shopkeepersList');
   if (shopkeepers.length === 0) {
     list.innerHTML = '<div class="empty"><i class="fa fa-users"></i>Koi shopkeeper nahi.</div>';
     return;
   }
-  list.innerHTML = shopkeepers.map(s => {
-    const total = orders.filter(o => o.shopId == s.id).length;
-    const pending = orders.filter(o => o.shopId == s.id && o.status === 'Pending').length;
-    return '<div class="item">' +
+  var html = '';
+  for (var i = 0; i < shopkeepers.length; i++) {
+    var s = shopkeepers[i];
+    var total = 0;
+    var pending = 0;
+    for (var j = 0; j < orders.length; j++) {
+      if (orders[j].shopId == s.id) {
+        total++;
+        if (orders[j].status === 'Pending') pending++;
+      }
+    }
+    html += '<div class="item">' +
       '<div class="item-info">' +
         '<h4><i class="fa fa-store"></i> ' + s.name + '</h4>' +
         '<p><i class="fa fa-phone"></i> ' + s.mobile + '</p>' +
@@ -275,25 +305,28 @@ function renderShopkeepers() {
         '<button class="btn small danger" onclick="deleteShopkeeper(' + s.id + ')"><i class="fa fa-trash"></i></button>' +
       '</div>' +
     '</div>';
-  }).join('');
+  }
+  list.innerHTML = html;
 }
 
-// ================== NEW ORDER ==================
 function prepareOrderForm() {
-  const select = document.getElementById('orderShop');
+  var select = document.getElementById('orderShop');
   if (!select) return;
 
   if (shopkeepers.length === 0) {
     select.innerHTML = '<option value="">Pehle shopkeeper add karein</option>';
   } else {
-    select.innerHTML = '<option value="">-- Shopkeeper --</option>' +
-      shopkeepers.map(s => '<option value="' + s.id + '">' + s.name + ' (' + s.mobile + ')</option>').join('');
+    var html = '<option value="">-- Shopkeeper --</option>';
+    for (var i = 0; i < shopkeepers.length; i++) {
+      html += '<option value="' + shopkeepers[i].id + '">' + shopkeepers[i].name + ' (' + shopkeepers[i].mobile + ')</option>';
+    }
+    select.innerHTML = html;
   }
 
-  const dEl = document.getElementById('orderDate');
+  var dEl = document.getElementById('orderDate');
   if (dEl) dEl.value = todayStr();
 
-  const rows = document.getElementById('productRows');
+  var rows = document.getElementById('productRows');
   if (rows) {
     rows.innerHTML = '';
     addProductRow();
@@ -302,27 +335,35 @@ function prepareOrderForm() {
 }
 
 function addProductRow() {
-  const container = document.getElementById('productRows');
+  var container = document.getElementById('productRows');
   if (!container) return;
-  const idx = container.children.length;
+  var idx = container.children.length;
 
   if (products.length === 0) {
     alert('Pehle Settings mein product add karein');
     return;
   }
 
-  const div = document.createElement('div');
+  var div = document.createElement('div');
   div.className = 'product-row';
-  div.innerHTML =
-    '<div class="product-row-head">' +
+
+  var productsHtml = '';
+  for (var i = 0; i < products.length; i++) {
+    productsHtml += '<option value="' + products[i] + '">' + products[i] + '</option>';
+  }
+
+  var removeBtn = '';
+  if (idx > 0) {
+    removeBtn = '<button class="remove-btn" onclick="removeProductRow(this)"><i class="fa fa-trash"></i></button>';
+  }
+
+  div.innerHTML = '<div class="product-row-head">' +
       '<h4><i class="fa fa-box"></i> Product #' + (idx + 1) + '</h4>' +
-      (idx > 0 ? '<button class="remove-btn" onclick="removeProductRow(this)"><i class="fa fa-trash"></i></button>' : '') +
+      removeBtn +
     '</div>' +
     '<div class="form-group">' +
       '<label>Product</label>' +
-      '<select class="prod-select" onchange="updateSummary()">' +
-        products.map(p => '<option value="' + p + '">' + p + '</option>').join('') +
-      '</select>' +
+      '<select class="prod-select" onchange="updateSummary()">' + productsHtml + '</select>' +
     '</div>' +
     '<div class="qty-row">' +
       '<div class="form-group">' +
@@ -335,82 +376,83 @@ function addProductRow() {
       '</div>' +
       '<div class="form-group">' +
         '<label>Total</label>' +
-        '<input type="text" class="total-input" readonly style="background:#f0fdf4;font-weight:700;color:#16a34a" />' +
+        '<input type="text" class="total-input" readonly />' +
       '</div>' +
     '</div>';
+
   container.appendChild(div);
   updateSummary();
 }
 
 function removeProductRow(btn) {
-  btn.closest('.product-row').remove();
-  document.querySelectorAll('.product-row').forEach((row, i) => {
-    row.querySelector('h4').innerHTML = '<i class="fa fa-box"></i> Product #' + (i + 1);
-  });
+  btn.parentNode.parentNode.remove();
+  var rows = document.querySelectorAll('.product-row');
+  for (var i = 0; i < rows.length; i++) {
+    rows[i].querySelector('h4').innerHTML = '<i class="fa fa-box"></i> Product #' + (i + 1);
+  }
   updateSummary();
 }
 
 function updateSummary() {
-  const rows = document.querySelectorAll('.product-row');
-  let totalKg = 0;
-  const lines = [];
+  var rows = document.querySelectorAll('.product-row');
+  var totalKg = 0;
+  var lines = [];
 
-  rows.forEach(row => {
-    const prod = row.querySelector('.prod-select').value;
-    const m = parseInt(row.querySelector('.maund-input').value) || 0;
-    const k = parseInt(row.querySelector('.kg-input').value) || 0;
-    const rowKg = m * 40 + k;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var prod = row.querySelector('.prod-select').value;
+    var m = parseInt(row.querySelector('.maund-input').value) || 0;
+    var k = parseInt(row.querySelector('.kg-input').value) || 0;
+    var rowKg = m * 40 + k;
     row.querySelector('.total-input').value = qtyText(m, k);
     if (rowKg > 0) {
       totalKg += rowKg;
-      lines.push({ product: prod, maund: m, kg: k, totalKg: rowKg });
+      lines.push({ product: prod, maund: m, kg: k });
     }
-  });
+  }
 
-  const summary = document.getElementById('orderSummary');
+  var summary = document.getElementById('orderSummary');
   if (!summary) return;
 
   if (lines.length === 0) {
-    summary.innerHTML = '<h4><i class="fa fa-calculator"></i> Order Summary</h4><p style="color:#64748b;font-size:14px">Abhi koi quantity nahi daali</p>';
+    summary.innerHTML = '<h4>Order Summary</h4><p style="color:#64748b;font-size:14px">Abhi koi quantity nahi daali</p>';
     return;
   }
 
-  summary.innerHTML =
-    '<h4><i class="fa fa-calculator"></i> Order Summary</h4>' +
-    lines.map(l =>
-      '<div class="summary-line">' +
-        '<span>' + l.product + '</span>' +
-        '<span>' + qtyText(l.maund, l.kg) + '</span>' +
-      '</div>'
-    ).join('') +
-    '<div class="summary-line">' +
-      '<span>TOTAL</span>' +
-      '<span>' + totalKgText(totalKg) + '</span>' +
+  var html = '<h4>Order Summary</h4>';
+  for (var i = 0; i < lines.length; i++) {
+    html += '<div class="summary-line">' +
+      '<span>' + lines[i].product + '</span>' +
+      '<span>' + qtyText(lines[i].maund, lines[i].kg) + '</span>' +
     '</div>';
+  }
+  html += '<div class="summary-line"><span>TOTAL</span><span>' + totalKgText(totalKg) + '</span></div>';
+  summary.innerHTML = html;
 }
 
 function saveMultiOrder() {
-  const shopId = document.getElementById('orderShop').value;
-  const date = document.getElementById('orderDate').value;
-  const notes = document.getElementById('orderNotes').value.trim();
+  var shopId = document.getElementById('orderShop').value;
+  var date = document.getElementById('orderDate').value;
+  var notes = document.getElementById('orderNotes').value.trim();
 
   if (!shopId) { alert('Shopkeeper chunein!'); return; }
   if (!date) { alert('Date chunein!'); return; }
 
-  const rows = document.querySelectorAll('.product-row');
-  const items = [];
-  let totalKg = 0;
+  var rows = document.querySelectorAll('.product-row');
+  var items = [];
+  var totalKg = 0;
 
-  rows.forEach(row => {
-    const prod = row.querySelector('.prod-select').value;
-    const m = parseInt(row.querySelector('.maund-input').value) || 0;
-    const k = parseInt(row.querySelector('.kg-input').value) || 0;
-    const rowKg = m * 40 + k;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var prod = row.querySelector('.prod-select').value;
+    var m = parseInt(row.querySelector('.maund-input').value) || 0;
+    var k = parseInt(row.querySelector('.kg-input').value) || 0;
+    var rowKg = m * 40 + k;
     if (rowKg > 0) {
       items.push({ product: prod, maund: m, kg: k, totalKg: rowKg });
       totalKg += rowKg;
     }
-  });
+  }
 
   if (items.length === 0) { alert('Kam az kam ek product ki quantity daalein!'); return; }
 
@@ -426,24 +468,31 @@ function saveMultiOrder() {
   });
 
   saveData();
-  const shop = shopkeepers.find(s => s.id == shopId);
-  alert('Order save!\n' + shop.name + '\n' + items.length + ' products • ' + totalKgText(totalKg));
+  var shopName = '';
+  for (var i = 0; i < shopkeepers.length; i++) {
+    if (shopkeepers[i].id == shopId) shopName = shopkeepers[i].name;
+  }
+  alert('Order save!\n' + shopName + '\n' + items.length + ' products');
 
   prepareOrderForm();
   document.getElementById('orderNotes').value = '';
 }
 
-// ================== ORDERS PAGE ==================
 function renderOrdersPage() {
-  const dateVal = document.getElementById('ordersDate').value || todayStr();
-  const statusFilter = document.getElementById('ordersStatus').value;
+  var dateVal = document.getElementById('ordersDate').value || todayStr();
+  var statusFilter = document.getElementById('ordersStatus').value;
 
-  let filtered = orders.filter(o => o.date === dateVal);
-  if (statusFilter === 'Pending') filtered = filtered.filter(o => o.status === 'Pending');
-  if (statusFilter === 'Delivered') filtered = filtered.filter(o => o.status === 'Delivered');
+  var filtered = [];
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    if (o.date !== dateVal) continue;
+    if (statusFilter === 'Pending' && o.status !== 'Pending') continue;
+    if (statusFilter === 'Delivered' && o.status !== 'Delivered') continue;
+    filtered.push(o);
+  }
 
-  const list = document.getElementById('ordersList');
-  const summary = document.getElementById('ordersSummary');
+  var list = document.getElementById('ordersList');
+  var summary = document.getElementById('ordersSummary');
 
   if (filtered.length === 0) {
     summary.innerHTML = '<div><p>' + formatDate(dateVal) + ' ka load</p><div class="big-num">0 kg</div></div>';
@@ -451,63 +500,82 @@ function renderOrdersPage() {
     return;
   }
 
-  const totalKg = filtered.reduce((s, o) => s + (')o.totalKg || 0), 0);
+  var totalKg = 0;
+  for (var i = 0; i < filtered.length; i++) totalKg += filtered[i].totalKg || 0;
 
-  summary.innerHTML =
-    '<div>' +
-      '<p>' + formatDate(dateVal) + ' ka total load</p>' +
-      '<div class="big-num">' +
- + total       KgText(totalKg) + '</ '<div>' +
-    '</div>';
+  summary.innerHTML = '<div><p>' + formatDate(dateVal) + ' ka total load</p><div class="big-num">' + totalKgText(totalKg) + '</div></div>';
 
- p const grouped = {};
-  filtered class.forEach(o => {
-    if (!grouped[o.shopId]) grouped[o.shopId] = [];
-    grouped[o.shopId].push(o);
-  });
+  var grouped = {};
+  for (var i = 0; i < filtered.length; i++) {
+    var sid = filtered[i].shopId;
+    if (!grouped[sid]) grouped[sid] = [];
+    grouped[sid].push(filtered[i]);
+  }
 
-  list.innerHTML = Object.keys(grouped).map(shopId => {
-    const shop = shopkeepers.find(s => s.id == shopId);
-    const shopName = shop ? shop.name : 'Unknown';
-    const sOrders = grouped[shopId];
-    const shopKg = sOrders.reduce((sum, o) => sum + (o.totalKg || 0), 0);
+  var html = '';
+  var keys = Object.keys(grouped);
+  for (var k = 0; k < keys.length; k++) {
+    var shopId = keys[k];
+    var shopName = 'Unknown';
+    var shopAddress = '';
+    var shopMobile = '';
+    for (var i = 0; i < shopkeepers.length; i++) {
+      if (shopkeepers[i].id == shopId) {
+        shopName = shopkeepers[i].name;
+        shopAddress = shopkeepers[i].address || '—';
+        shopMobile = shopkeepers[i].mobile;
+      }
+    }
+    var sOrders = grouped[shopId];
+    var shopKg = 0;
+    for (var i = 0; i < sOrders.length; i++) shopKg += sOrders[i].totalKg || 0;
 
-    const hasPending = sOrders.some(o => o.status === 'Pending');
+    var hasPending = false;
+    for (var i = 0; i < sOrders.length; i++) {
+      if (sOrders[i].status === 'Pending') hasPending = true;
+    }
 
-    // ** HAR ENTRY ALAG ALAG **
-    const rows = [];
-    sOrders.forEach(o => {
-      (o.items || []).forEach(it => {
-        rows.push(
-          '<div class="shop-order-line">' +
-            '<span class="product-name">📦 ' + it.product + '</span>' +
-            '<span class="qty">' + qtyText(it.maund, it.kg) + '</span>' +
-          '</div>'
-        );
-      });
-    });
+    var rowsHtml = '';
+    for (var i = 0; i < sOrders.length; i++) {
+      var items = sOrders[i].items || [];
+      for (var j = 0; j < items.length; j++) {
+        rowsHtml += '<div class="shop-order-line">' +
+          '<span class="product-name">📦 ' + items[j].product + '</span>' +
+          '<span class="qty">' + qtyText(items[j].maund, items[j].kg) + '</span>' +
+        '</div>';
+      }
+    }
 
-    return '<div class="shop-group">' +
+    var pendingBtns = '';
+    if (hasPending) {
+      for (var i = 0; i < sOrders.length; i++) {
+        if (sOrders[i].status === 'Pending') {
+          pendingBtns += '<div style="text-align:right; margin-top:8px;">' +
+            '<button class="btn small success" onclick="markDelivered(' + sOrders[i].id + ')"><i class="fa fa-check"></i> Delivered</button>' +
+          '</div>';
+        }
+      }
+    }
+
+    html += '<div class="shop-group">' +
       '<div class="shop-group-head">' +
         '<div>' +
           '<h4><i class="fa fa-store"></i> ' + shopName + '</h4>' +
-          (shop ? '<p><i class="fa fa-map-marker-alt"></i> ' + (shop.address || '—') + ' • <i class="fa fa-phone"></i> ' + shop.mobile + '</p>' : '') +
+          '<p><i class="fa fa-map-marker-alt"></i> ' + shopAddress + ' • <i class="fa fa-phone"></i> ' + shopMobile + '</p>' +
         '</div>' +
         '<span class="shop-group-total">' + totalKgText(shopKg) + '</span>' +
       '</div>' +
-      rows.join('') +
-      (hasPending ? sOrders.filter(o => o.status === 'Pending').map(o =>
-        '<div style="text-align:right; margin-top:8px;">' +
-          '<button class="btn small success" onclick="markDelivered(' + o.id + ')"><i class="fa fa-check"></i> Delivered</button>' +
-        '</div>'
-      ).join('') : '') +
+      rowsHtml +
+      pendingBtns +
     '</div>';
-  }).join('');
+  }
+  list.innerHTML = html;
 }
 
 function markDelivered(id) {
-  const o = orders.find(x => x.id == id);
-  if (o) o.status = 'Delivered';
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].id == id) orders[i].status = 'Delivered';
+  }
   saveData();
   renderOrdersPage();
   renderDelivery();
@@ -515,85 +583,116 @@ function markDelivered(id) {
   renderHistory();
 }
 
-// ================== DELIVERY ==================
 function renderDelivery() {
-  const pending = orders.filter(o => o.status === 'Pending');
-  const list = document.getElementById('deliveryList');
+  var pending = [];
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].status === 'Pending') pending.push(orders[i]);
+  }
+  var list = document.getElementById('deliveryList');
   if (pending.length === 0) {
     list.innerHTML = '<div class="empty"><i class="fa fa-check-circle"></i>Koi pending order nahi!</div>';
     return;
   }
 
-  const grouped = {};
-  pending.forEach(o => {
-    if (!grouped[o.shopId]) grouped[o.shopId] = [];
-    grouped[o.shopId].push(o);
-  });
+  var grouped = {};
+  for (var i = 0; i < pending.length; i++) {
+    var sid = pending[i].shopId;
+    if (!grouped[sid]) grouped[sid] = [];
+    grouped[sid].push(pending[i]);
+  }
 
-  list.innerHTML = Object.keys(grouped).map(shopId => {
-    const shop = shopkeepers.find(s => s.id == shopId);
-    const shopName = shop ? shop.name : 'Unknown';
-    const sOrders = grouped[shopId];
-    const totalKg = sOrders.reduce((sum, o) => sum + (o.totalKg || 0), 0);
+  var html = '';
+  var keys = Object.keys(grouped);
+  for (var k = 0; k < keys.length; k++) {
+    var shopId = keys[k];
+    var shopName = 'Unknown';
+    var shopMobile = '';
+    for (var i = 0; i < shopkeepers.length; i++) {
+      if (shopkeepers[i].id == shopId) {
+        shopName = shopkeepers[i].name;
+        shopMobile = shopkeepers[i].mobile;
+      }
+    }
+    var sOrders = grouped[shopId];
+    var totalKg = 0;
+    for (var i = 0; i < sOrders.length; i++) totalKg += sOrders[i].totalKg || 0;
 
-    return '<div class="shop-group">' +
-      '<div class="shop-group-head">' +
-        '<div>' +
-          '<h4><i class="fa fa-store"></i> ' + shopName + '</h4>' +
-          (shop ? '<p><i class="fa fa-phone"></i> ' + shop.mobile + '</p>' : '') +
+    var ordersHtml = '';
+    for (var i = 0; i < sOrders.length; i++) {
+      var o = sOrders[i];
+      var itemsHtml = '';
+      var items = o.items || [];
+      for (var j = 0; j < items.length; j++) {
+        itemsHtml += '<div><span class="product-name">' + items[j].product + '</span> — <span class="qty">' + qtyText(items[j].maund, items[j].kg) + '</span></div>';
+      }
+      ordersHtml += '<div class="shop-order-line">' +
+        '<div style="flex:1">' + itemsHtml +
+          '<small>' + formatDate(o.date) + (o.notes ? ' • ' + o.notes : '') + '</small>' +
         '</div>' +
+        '<button class="btn small success" onclick="markDelivered(' + o.id + ')"><i class="fa fa-check"></i> Delivered</button>' +
+      '</div>';
+    }
+
+    html += '<div class="shop-group">' +
+      '<div class="shop-group-head">' +
+        '<div><h4><i class="fa fa-store"></i> ' + shopName + '</h4>' +
+          '<p><i class="fa fa-phone"></i> ' + shopMobile + '</p></div>' +
         '<span class="shop-group-total">' + totalKgText(totalKg) + '</span>' +
-      '</div>' +
-      sOrders.map(o =>
-        '<div class="shop-order-line">' +
-          '<div style="flex:1">' +
-            (o.items || []).map(i =>
-              '<div><span class="product-name">' + i.product + '</span> — <span class="qty">' + qtyText(i.maund, i.kg) + '</span></div>'
-            ).join('') +
-            '<small>' + formatDate(o.date) + (o.notes ? ' • ' + o.notes : '') + '</small>' +
-          '</div>' +
-          '<button class="btn small success" onclick="markDelivered(' + o.id + ')"><i class="fa fa-check"></i> Delivered</button>' +
-        '</div>'
-      ).join('') +
+      '</div>' + ordersHtml +
     '</div>';
-  }).join('');
+  }
+  list.innerHTML = html;
 }
 
-// ================== HISTORY ==================
 function renderHistory() {
-  const searchEl = document.getElementById('historySearch');
-  const dateEl = document.getElementById('historyDate');
-  const search = searchEl ? searchEl.value.toLowerCase() : '';
-  const dateFilter = dateEl ? dateEl.value : '';
+  var searchEl = document.getElementById('historySearch');
+  var dateEl = document.getElementById('historyDate');
+  var search = searchEl ? searchEl.value.toLowerCase() : '';
+  var dateFilter = dateEl ? dateEl.value : '';
 
-  let filtered = orders.filter(o => o.status === 'Delivered');
-  if (search) {
-    filtered = filtered.filter(o => {
-      const shop = shopkeepers.find(s => s.id == o.shopId);
-      return shop && shop.name.toLowerCase().includes(search);
-    });
+  var filtered = [];
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    if (o.status !== 'Delivered') continue;
+    if (dateFilter && o.date !== dateFilter) continue;
+    if (search) {
+      var shopName = '';
+      for (var j = 0; j < shopkeepers.length; j++) {
+        if (shopkeepers[j].id == o.shopId) shopName = shopkeepers[j].name.toLowerCase();
+      }
+      if (shopName.indexOf(search) === -1) continue;
+    }
+    filtered.push(o);
   }
-  if (dateFilter) filtered = filtered.filter(o => o.date === dateFilter);
-  filtered = filtered.slice().reverse();
+  filtered.reverse();
 
-  const list = document.getElementById('historyList');
+  var list = document.getElementById('historyList');
   if (filtered.length === 0) {
     list.innerHTML = '<div class="empty"><i class="fa fa-clock"></i>Koi history nahi.</div>';
     return;
   }
 
-  list.innerHTML = filtered.map(o => {
-    const shop = shopkeepers.find(s => s.id == o.shopId);
-    return '<div class="item delivered-item">' +
+  var html = '';
+  for (var i = 0; i < filtered.length; i++) {
+    var o = filtered[i];
+    var shopName = 'Unknown';
+    for (var j = 0; j < shopkeepers.length; j++) {
+      if (shopkeepers[j].id == o.shopId) shopName = shopkeepers[j].name;
+    }
+    var itemsHtml = '';
+    var items = o.items || [];
+    for (var j = 0; j < items.length; j++) {
+      itemsHtml += '<p>• ' + items[j].product + ' — <b>' + qtyText(items[j].maund, items[j].kg) + '</b></p>';
+    }
+    html += '<div class="item delivered-item">' +
       '<div class="item-info">' +
-        '<h4>' + (shop ? shop.name : 'Unknown') + '</h4>' +
-        (o.items || []).map(i =>
-          '<p>• ' + i.product + ' — <b>' + qtyText(i.maund, i.kg) + '</b></p>'
-        ).join('="date-line"><i class="fa fa-calendar"></i> ' + formatDate(o.date) + '</p>' +
+        '<h4>' + shopName + '</h4>' + itemsHtml +
+        '<p class="date-line"><i class="fa fa-calendar"></i> ' + formatDate(o.date) + '</p>' +
         '<span class="badge delivered">Delivered</span>' +
       '</div>' +
     '</div>';
-  }).join('');
+  }
+  list.innerHTML = html;
 }
 
 function clearHistoryFilter() {
@@ -602,27 +701,39 @@ function clearHistoryFilter() {
   renderHistory();
 }
 
-// ================== MODAL ==================
 function viewShopHistory(shopId) {
-  const shop = shopkeepers.find(s => s.id == shopId);
-  const sOrders = orders.filter(o => o.shopId == shopId).slice().reverse();
-  document.getElementById('modalTitle').textContent = shop.name + ' - Orders';
-  const body = document.getElementById('modalBody');
+  var shopName = '';
+  for (var i = 0; i < shopkeepers.length; i++) {
+    if (shopkeepers[i].id == shopId) shopName = shopkeepers[i].name;
+  }
+  var sOrders = [];
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].shopId == shopId) sOrders.push(orders[i]);
+  }
+  sOrders.reverse();
+
+  document.getElementById('modalTitle').textContent = shopName + ' - Orders';
+  var body = document.getElementById('modalBody');
 
   if (sOrders.length === 0) {
     body.innerHTML = '<div class="empty">Abhi koi order nahi.</div>';
   } else {
-    body.innerHTML = sOrders.map(o =>
-      '<div class="item ' + (o.status === 'Pending' ? 'pending-item' : 'delivered-item') + '" style="margin-bottom:10px;">' +
-        '<div class="item-info">' +
-          (o.items || []).map(i =>
-            '<p><b>' + i.product + '</b> — ' + qtyText(i.maund, i.kg) + '</p>'
-          ).join('') +
+    var html = '';
+    for (var i = 0; i < sOrders.length; i++) {
+      var o = sOrders[i];
+      var itemsHtml = '';
+      var items = o.items || [];
+      for (var j = 0; j < items.length; j++) {
+        itemsHtml += '<p><b>' + items[j].product + '</b> — ' + qtyText(items[j].maund, items[j].kg) + '</p>';
+      }
+      html += '<div class="item ' + (o.status === 'Pending' ? 'pending-item' : 'delivered-item') + '" style="margin-bottom:10px;">' +
+        '<div class="item-info">' + itemsHtml +
           '<p><small>' + formatDate(o.date) + '</small></p>' +
           '<span class="badge ' + o.status.toLowerCase() + '">' + o.status + '</span>' +
         '</div>' +
-      '</div>'
-    ).join('');
+      '</div>';
+    }
+    body.innerHTML = html;
   }
   document.getElementById('modal').classList.add('active');
 }
@@ -631,16 +742,11 @@ function closeModal() {
   document.getElementById('modal').classList.remove('active');
 }
 
-// ================== INIT ==================
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
   applySettings();
   renderDashboard();
   renderShopkeepers();
   prepareOrderForm();
   renderHistory();
   renderSettings();
-});
-
-window.addEventListener('resize', function() {
-  if (settings.mode === 'auto') applySettings();
 });
