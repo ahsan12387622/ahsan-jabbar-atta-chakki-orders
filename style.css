@@ -6,7 +6,7 @@ body {
   min-height: 100vh;
 }
 
-/* ========== TOPBAR ========== */
+/* TOPBAR */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -41,7 +41,7 @@ body {
 }
 .icon-btn:hover { background: rgba(255,255,255,0.2); }
 
-/* ========== SIDEBAR ========== */
+/* SIDEBAR */
 .sidebar {
   width: 260px;
   background: #1e293b;
@@ -87,19 +87,19 @@ body {
 .nav-btn.active { background: #16a34a; color: #fff; font-weight: 600; }
 .nav-btn i { width: 22px; text-align: center; font-size: 16px; }
 
-/* ========== MAIN ========== */
+/* MAIN */
 .main {
   padding: 20px;
   max-width: 1300px;
   transition: 0.3s;
 }
 
-/* PC Mode - sidebar always visible */
+/* PC Mode */
 body.pc-mode .sidebar { transform: translateX(0); }
 body.pc-mode .main { margin-left: 260px; }
 body.pc-mode .menu-btn { display: none; }
 
-/* ========== PAGE ========== */
+/* PAGE */
 .page { display: none; animation: fade 0.3s; }
 .page.active { display: block; }
 @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -125,7 +125,7 @@ h2 { font-size: 18px; color: #1e293b; }
 h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .section-title { color: #16a34a; margin: 15px 0 12px; }
 
-/* ========== BIG DASHBOARD BUTTONS ========== */
+/* BIG DASHBOARD BUTTONS */
 .big-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -154,7 +154,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .big-btn.new-order { background: linear-gradient(135deg, #16a34a, #15803d); }
 .big-btn.all-orders { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
 
-/* ========== CARDS ========== */
+/* CARDS */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -190,7 +190,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .card.green { border-color: #22c55e; }
 .card.green .card-icon { background: #dcfce7; color: #16a34a; }
 
-/* ========== BOX ========== */
+/* BOX */
 .box {
   background: #fff;
   border-radius: 14px;
@@ -215,7 +215,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
   font-weight: 700;
 }
 
-/* ========== BUTTONS ========== */
+/* BUTTONS */
 .btn {
   padding: 12px 20px;
   border: 1px solid #e2e8f0;
@@ -246,7 +246,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 }
 .btn.add-product-btn:hover { background: #dcfce7; }
 
-/* ========== FORMS ========== */
+/* FORMS */
 .form-group { margin-bottom: 14px; }
 .form-group label {
   display: block;
@@ -274,7 +274,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .divider { border: none; border-top: 2px dashed #e2e8f0; margin: 18px 0; }
 .hint { color: #64748b; font-size: 13px; margin-bottom: 12px; }
 
-/* ========== PRODUCT ROW ========== */
+/* PRODUCT ROW */
 .product-row {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -315,7 +315,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .qty-row label { font-size: 12px; }
 .qty-row input { padding: 11px; font-size: 14px; }
 
-/* ========== ORDER SUMMARY ========== */
+/* ORDER SUMMARY */
 .order-summary {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
@@ -339,7 +339,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 }
 .summary-line:last-child { border-bottom: none; font-weight: 700; color: #15803d; font-size: 15px; }
 
-/* ========== FILTERS ========== */
+/* FILTERS */
 .filters {
   display: flex;
   gap: 10px;
@@ -356,7 +356,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
   flex: 1;
 }
 
-/* ========== LOAD SUMMARY ========== */
+/* LOAD SUMMARY */
 .load-summary {
   background: linear-gradient(135deg, #16a34a, #15803d);
   color: #fff;
@@ -372,7 +372,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .load-summary .big-num { font-size: 28px; font-weight: 800; margin-top: 5px; }
 .load-summary p { font-size: 14px; opacity: 0.95; }
 
-/* ========== LIST ITEMS ========== */
+/* LIST ITEMS */
 .list { display: flex; flex-direction: column; gap: 12px; }
 .item {
   background: #fff;
@@ -408,7 +408,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 
 .item-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
-/* ========== SHOP GROUP ========== */
+/* SHOP GROUP */
 .shop-group {
   background: #fff;
   border-radius: 14px;
@@ -434,6 +434,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
   border-radius: 20px;
   font-weight: 700;
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .shop-order-line {
@@ -448,7 +449,31 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .shop-order-line .product-name { font-weight: 700; color: #334155; font-size: 15px; }
 .shop-order-line .qty { color: #16a34a; font-weight: 800; font-size: 15px; }
 
-/* ========== EMPTY ========== */
+/* QTY SLIDER - Jab bahut zyada ho */
+.qty-scroll {
+  max-width: 60%;
+  overflow-x: auto;
+  white-space: nowrap;
+  display: inline-block;
+  padding: 4px 8px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.qty-scroll::-webkit-scrollbar {
+  height: 5px;
+}
+.qty-scroll::-webkit-scrollbar-thumb {
+  background: #16a34a;
+  border-radius: 4px;
+}
+.qty-scroll::-webkit-scrollbar-track {
+  background: #dcfce7;
+  border-radius: 4px;
+}
+
+/* EMPTY */
 .empty {
   text-align: center;
   padding: 40px 20px;
@@ -459,7 +484,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 }
 .empty i { font-size: 40px; display: block; margin-bottom: 10px; opacity: 0.4; }
 
-/* ========== MODE SWITCH ========== */
+/* MODE SWITCH */
 .mode-switch { display: flex; gap: 10px; margin-top: 10px; }
 .mode-opt {
   flex: 1;
@@ -477,7 +502,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 .mode-opt:hover { border-color: #16a34a; color: #16a34a; }
 .mode-opt.active { border-color: #16a34a; background: #f0fdf4; color: #16a34a; }
 
-/* ========== PRODUCTS LIST ========== */
+/* PRODUCTS LIST */
 .product-list {
   display: flex;
   flex-wrap: wrap;
@@ -509,7 +534,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
   justify-content: center;
 }
 
-/* ========== MODAL ========== */
+/* MODAL */
 .modal {
   display: none;
   position: fixed;
@@ -532,7 +557,7 @@ h3 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
 }
 .close { float: right; font-size: 28px; cursor: pointer; color: #94a3b8; line-height: 1; }
 
-/* ========== MOBILE MODE ========== */
+/* MOBILE MODE */
 body.mobile-mode .sidebar {
   transform: translateX(-100%);
   width: 280px;
@@ -548,8 +573,9 @@ body.mobile-mode .item-actions .btn { flex: 1; }
 body.mobile-mode .load-summary { flex-direction: column; text-align: center; }
 body.mobile-mode .mode-switch { flex-direction: column; }
 body.mobile-mode .big-buttons { grid-template-columns: 1fr; }
+body.mobile-mode .qty-scroll { max-width: 100%; }
 
-/* ========== AUTO RESPONSIVE ========== */
+/* AUTO RESPONSIVE */
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); width: 280px; }
   .sidebar.open { transform: translateX(0); }
@@ -568,4 +594,5 @@ body.mobile-mode .big-buttons { grid-template-columns: 1fr; }
   .big-buttons { grid-template-columns: 1fr; }
   .big-btn i { font-size: 28px; }
   .big-btn span { font-size: 17px; }
+  .qty-scroll { max-width: 100%; }
 }
