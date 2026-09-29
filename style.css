@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Atta Chakki - Order Management</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+<header class="navbar">
+  <div class="logo">🌾 Atta Chakki</div>
+  <nav>
+    <button class="nav-btn active" onclick="showPage('dashboard', this)"><i class="fa fa-home"></i> Dashboard</button>
+    <button class="nav-btn" onclick="showPage('shopkeepers', this)"><i class="fa fa-users"></i> Shopkeepers</button>
+    <button class="nav-btn" onclick="showPage('neworder', this)"><i class="fa fa-plus-circle"></i> Naya Order</button>
+    <button class="nav-btn" onclick="showPage('orders', this)"><i class="fa fa-list"></i> Orders</button>
+    <button class="nav-btn" onclick="showPage('delivery', this)"><i class="fa fa-truck"></i> Delivery</button>
+    <button class="nav-btn" onclick="showPage('history', this)"><i class="fa fa-clock"></i> History</button>
+  </nav>
+</header>
+
+<main class="container">
+
+  <section id="dashboard" class="page active">
+    <h1>Dashboard</h1>
+    <div class="cards">
+      <div class="card blue">
+        <i class="fa fa-users"></i>
+        <h3 id="totalShopkeepers">0</h3>
+        <p>Total Shopkeepers</p>
+      </div>
+      <div class="card orange">
+        <i class="fa fa-calendar-day"></i>
+        <h3 id="todayOrders">0</h3>
+        <p>Aaj ke Orders</p>
+      </div>
+      <div class="card red">
+        <i class="fa fa-hourglass-half"></i>
+        <h3 id="pendingOrders">0</h3>
+        <p>Pending Orders</p>
+      </div>
+      <div class="card green">
+        <i class="fa fa-check-circle"></i>
+        <h3 id="deliveredOrders">0</h3>
+        <p>Delivered Orders</p>
+      </div>
+    </div>
+    <div class="quick-actions">
+      <button class="btn primary" onclick="showPage('neworder')"><i class="fa fa-plus"></i> Naya Order</button>
+      <button class="btn" onclick="showPage('shopkeepers')"><i class="fa fa-user-plus"></i> Naya Shopkeeper</button>
+      <button class="btn" onclick="showPage('delivery')"><i class="fa fa-truck"></i> Delivery</button>
+    </div>
+  </section>
+
+  <section id="shopkeepers" class="page">
+    <h1>Shopkeepers</h1>
+    <div class="form-box">
+      <h3 id="shopFormTitle">Naya Shopkeeper Add Karein</h3>
+      <input type="hidden" id="shopId" />
+      <input type="text" id="shopName" placeholder="Shopkeeper ka naam *" />
+      <input type="text" id="shopMobile" placeholder="Mobile number *" />
+      <input type="text" id="shopAddress" placeholder="Shop / Address" />
+      <button class="btn primary" onclick="saveShopkeeper()"><i class="fa fa-save"></i> Save</button>
+      <button class="btn" onclick="resetShopForm()">Cancel</button>
+    </div>
+    <div id="shopkeepersList" class="list"></div>
+  </section>
+
+  <section id="neworder" class="page">
+    <h1>Naya Order</h1>
+    <div class="form-box">
+      <label>Shopkeeper Chunein *</label>
+      <select id="orderShop"></select>
+
+      <label>Product *</label>
+      <select id="orderProduct">
+        <option value="Aata">Aata</option>
+        <option value="Besan">Besan</option>
+        <option value="Chawal ka Atta">Chawal ka Atta</option>
+      </select>
+
+      <label>Quantity (bags) *</label>
+      <input type="number" id="orderQty" min="1" placeholder="Jaise 5" />
+
+      <label>Order Date *</label>
+      <input type="date" id="orderDate" />
+
+      <label>Notes (optional)</label>
+      <textarea id="orderNotes" placeholder="Koi khaas baat..."></textarea>
+
+      <button class="btn primary" onclick="saveOrder()"><i class="fa fa-save"></i> Order Save Karein</button>
+    </div>
+  </section>
+
+  <section id="orders" class="page">
+    <h1>All Orders</h1>
+    <div class="filters">
+      <input type="text" id="searchOrders" placeholder="🔍 Shopkeeper ya product search..." oninput="renderOrders()" />
+      <select id="filterStatus" onchange="renderOrders()">
+        <option value="">All Status</option>
+        <option value="Pending">Pending</option>
+        <option value="Delivered">Delivered</option>
+      </select>
+    </div>
+    <div id="ordersList" class="list"></div>
+  </section>
+
+  <section id="delivery" class="page">
+    <h1>Delivery - Pending Orders</h1>
+    <p class="hint">Shopkeeper ke hisaab se group kiye gaye pending orders</p>
+    <div id="deliveryList" class="list"></div>
+  </section>
+
+  <section id="history" class="page">
+    <h1>Order History</h1>
+    <div class="filters">
+      <input type="text" id="historySearch" placeholder="🔍 Shopkeeper name..." oninput="renderHistory()" />
+      <input type="date" id="historyDate" onchange="renderHistory()" />
+      <button class="btn" onclick="clearHistoryFilter()">Clear</button>
+    </div>
+    <div id="historyList" class="list"></div>
+  </section>
+
+</main>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h2 id="modalTitle">Order History</h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
