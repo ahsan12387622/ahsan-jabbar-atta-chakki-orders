@@ -189,28 +189,20 @@ function renderDashboard() {
     return;
   }
 
-  const byProduct = {};
+  // ** HAR ENTRY ALAG ALAG DIKHAO **
+  const rows = [];
   todayPending.forEach(o => {
     (o.items || []).forEach(it => {
-      if (!byProduct[it.product]) byProduct[it.product] = { m: 0, kg: 0 };
-      byProduct[it.product].m += it.maund;
-      byProduct[it.product].kg += it.kg;
+      rows.push(
+        '<div class="shop-order-line">' +
+          '<span class="product-name">📦 ' + it.product + '</span>' +
+          '<span class="qty">' + qtyText(it.maund, it.kg) + '</span>' +
+        '</div>'
+      );
     });
   });
 
-  Object.keys(byProduct).forEach(p => {
-    while (byProduct[p].kg >= 40) {
-      byProduct[p].m += 1;
-      byProduct[p].kg -= 40;
-    }
-  });
-
-  list.innerHTML = Object.keys(byProduct).map(p =>
-    '<div class="shop-order-line">' +
-      '<span class="product-name">📦 ' + p + '</span>' +
-      '<span class="qty">' + qtyText(byProduct[p].m, byProduct[p].kg) + '</span>' +
-    '</div>'
-  ).join('');
+  list.innerHTML = rows.join('');
 }
 
 // ================== SHOPKEEPERS ==================
@@ -459,35 +451,17 @@ function renderOrdersPage() {
     return;
   }
 
-  const totalKg = filtered.reduce((s, o) => s + (o.totalKg || 0), 0);
-  const byProduct = {};
-  filtered.forEach(o => {
-    (o.items || []).forEach(it => {
-      if (!byProduct[it.product]) byProduct[it.product] = { m: 0, kg: 0 };
-      byProduct[it.product].m += it.maund;
-      byProduct[it.product].kg += it.kg;
-    });
-  });
-  Object.keys(byProduct).forEach(p => {
-    while (byProduct[p].kg >= 40) {
-      byProduct[p].m += 1;
-      byProduct[p].kg -= 40;
-    }
-  });
+  const totalKg = filtered.reduce((s, o) => s + (')o.totalKg || 0), 0);
 
   summary.innerHTML =
     '<div>' +
       '<p>' + formatDate(dateVal) + ' ka total load</p>' +
-      '<div class="big-num">' + totalKgText(totalKg) + '</div>' +
-    '</div>' +
-    '<div style="text-align:right;">' +
-      Object.keys(byProduct).map(p =>
-        '<p>📦 ' + p + ': <b>' + qtyText(byProduct[p].m, byProduct[p].kg) + '</b></p>'
-      ).join('') +
+      '<div class="big-num">' +
+ + total       KgText(totalKg) + '</ '<div>' +
     '</div>';
 
-  const grouped = {};
-  filtered.forEach(o => {
+ p const grouped = {};
+  filtered class.forEach(o => {
     if (!grouped[o.shopId]) grouped[o.shopId] = [];
     grouped[o.shopId].push(o);
   });
@@ -498,22 +472,20 @@ function renderOrdersPage() {
     const sOrders = grouped[shopId];
     const shopKg = sOrders.reduce((sum, o) => sum + (o.totalKg || 0), 0);
 
-    const prodData = {};
+    const hasPending = sOrders.some(o => o.status === 'Pending');
+
+    // ** HAR ENTRY ALAG ALAG **
+    const rows = [];
     sOrders.forEach(o => {
       (o.items || []).forEach(it => {
-        if (!prodData[it.product]) prodData[it.product] = { m: 0, kg: 0 };
-        prodData[it.product].m += it.maund;
-        prodData[it.product].kg += it.kg;
+        rows.push(
+          '<div class="shop-order-line">' +
+            '<span class="product-name">📦 ' + it.product + '</span>' +
+            '<span class="qty">' + qtyText(it.maund, it.kg) + '</span>' +
+          '</div>'
+        );
       });
     });
-    Object.keys(prodData).forEach(p => {
-      while (prodData[p].kg >= 40) {
-        prodData[p].m += 1;
-        prodData[p].kg -= 40;
-      }
-    });
-
-    const hasPending = sOrders.some(o => o.status === 'Pending');
 
     return '<div class="shop-group">' +
       '<div class="shop-group-head">' +
@@ -523,12 +495,7 @@ function renderOrdersPage() {
         '</div>' +
         '<span class="shop-group-total">' + totalKgText(shopKg) + '</span>' +
       '</div>' +
-      Object.keys(prodData).map(p =>
-        '<div class="shop-order-line">' +
-          '<span class="product-name">📦 ' + p + '</span>' +
-          '<span class="qty">' + qtyText(prodData[p].m, prodData[p].kg) + '</span>' +
-        '</div>'
-      ).join('') +
+      rows.join('') +
       (hasPending ? sOrders.filter(o => o.status === 'Pending').map(o =>
         '<div style="text-align:right; margin-top:8px;">' +
           '<button class="btn small success" onclick="markDelivered(' + o.id + ')"><i class="fa fa-check"></i> Delivered</button>' +
@@ -622,8 +589,7 @@ function renderHistory() {
         '<h4>' + (shop ? shop.name : 'Unknown') + '</h4>' +
         (o.items || []).map(i =>
           '<p>• ' + i.product + ' — <b>' + qtyText(i.maund, i.kg) + '</b></p>'
-        ).join('') +
-        '<p class="date-line"><i class="fa fa-calendar"></i> ' + formatDate(o.date) + '</p>' +
+        ).join('="date-line"><i class="fa fa-calendar"></i> ' + formatDate(o.date) + '</p>' +
         '<span class="badge delivered">Delivered</span>' +
       '</div>' +
     '</div>';
