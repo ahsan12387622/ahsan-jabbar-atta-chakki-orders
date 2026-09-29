@@ -13,7 +13,7 @@ function todayStr() {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return y + '-' + m + '-' + day;
 }
 
 function formatDate(dateStr) {
@@ -41,12 +41,12 @@ function showPage(pageId, btn) {
   if (btn) btn.classList.add('active');
   else {
     document.querySelectorAll('.nav-btn').forEach(b => {
-      if (b.getAttribute('onclick')?.includes(pageId)) b.classList.add('active');
+      if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(pageId)) b.classList.add('active');
     });
   }
 
-  // Mobile: close sidebar
-  document.getElementById('sidebar').classList.remove('open');
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.classList.remove('open');
 
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'shopkeepers') renderShopkeepers();
@@ -74,7 +74,6 @@ function renderDashboard() {
   document.getElementById('pendingOrders').textContent = orders.filter(o => o.status === 'Pending').length;
   document.getElementById('deliveredOrders').textContent = orders.filter(o => o.status === 'Delivered').length;
 
-  // Aaj ka load
   const todayPending = orders.filter(o => o.date === today && o.status === 'Pending');
   const totalBags = todayPending.reduce((sum, o) => sum + o.qty, 0);
   document.getElementById('todayLoadBadge').textContent = totalBags + ' bags';
@@ -85,18 +84,17 @@ function renderDashboard() {
     return;
   }
 
-  // Group by product
   const byProduct = {};
   todayPending.forEach(o => {
     byProduct[o.product] = (byProduct[o.product] || 0) + o.qty;
   });
 
-  list.innerHTML = Object.keys(byProduct).map(p => `
-    <div class="shop-order-line">
-      <span class="product-name">📦 ${p}</span>
-      <span class="qty">${byProduct[p]} bags</span>
-    </div>
-  `).join('');
+  list.innerHTML = Object.keys(byProduct).map(p => 
+    '<div class="shop-order-line">' +
+      '<span class="product-name">📦 ' + p + '</span>' +
+      '<span class="qty">' + byProduct[p] + ' bags</span>' +
+    '</div>'
+  ).join('');
 }
 
 // ================== SHOPKEEPERS ==================
@@ -112,14 +110,14 @@ function saveShopkeeper() {
     const s = shopkeepers.find(x => x.id == id);
     s.name = name; s.mobile = mobile; s.address = address;
   } else {
-    shopkeepers.push({ id: Date.now(), name, mobile, address });
+    shopkeepers.push({ id: Date.now(), name: name, mobile: mobile, address: address });
   }
 
   saveData();
   resetShopForm();
   renderShopkeepers();
   renderDashboard();
-  alert('Shopkeeper save ho gaya! ✅');
+  alert('Shopkeeper save ho gaya!');
 }
 
 function resetShopForm() {
@@ -158,21 +156,19 @@ function renderShopkeepers() {
   list.innerHTML = shopkeepers.map(s => {
     const orderCount = orders.filter(o => o.shopId == s.id).length;
     const pendingCount = orders.filter(o => o.shopId == s.id && o.status === 'Pending').length;
-    return `
-      <div class="item">
-        <div class="item-info">
-          <h4><i class="fa fa-store"></i> ${s.name}</h4>
-          <p><i class="fa fa-phone"></i> ${s.mobile}</p>
-          ${s.address ? `<p><i class="fa fa-map-marker-alt"></i> ${s.address}</p>` : ''}
-          <p><small>${orderCount} total orders • ${pendingCount} pending</small></p>
-        </div>
-        <div class="item-actions">
-          <button class="btn small" onclick="viewShopHistory(${s.id})"><i class="fa fa-history"></i> History</button>
-          <button class="btn small" onclick="editShopkeeper(${s.id})"><i class="fa fa-edit"></i> Edit</button>
-          <button class="btn small danger" onclick="deleteShopkeeper(${s.id})"><i class="fa fa-trash"></i></button>
-        </div>
-      </div>
-    `;
+    return '<div class="item">' +
+      '<div class="item-info">' +
+        '<h4><i class="fa fa-store"></i> ' + s.name + '</h4>' +
+        '<p><i class="fa fa-phone"></i> ' + s.mobile + '</p>' +
+        (s.address ? '<p><i class="fa fa-map-marker-alt"></i> ' + s.address + '</p>' : '') +
+        '<p><small>' + orderCount + ' total orders • ' + pendingCount + ' pending</small></p>' +
+      '</div>' +
+      '<div class="item-actions">' +
+        '<button class="btn small" onclick="viewShopHistory(' + s.id + ')"><i class="fa fa-history"></i> History</button>' +
+        '<button class="btn small" onclick="editShopkeeper(' + s.id + ')"><i class="fa fa-edit"></i> Edit</button>' +
+        '<button class="btn small danger" onclick="deleteShopkeeper(' + s.id + ')"><i class="fa fa-trash"></i></button>' +
+      '</div>' +
+    '</div>';
   }).join('');
 }
 
@@ -183,7 +179,7 @@ function prepareOrderForm() {
     select.innerHTML = '<option value="">Pehle shopkeeper add karein</option>';
   } else {
     select.innerHTML = '<option value="">-- Select Shopkeeper --</option>' +
-      shopkeepers.map(s => `<option value="${s.id}">${s.name} (${s.mobile})</option>`).join('');
+      shopkeepers.map(s => '<option value="' + s.id + '">' + s.name + ' (' + s.mobile + ')</option>').join('');
   }
   document.getElementById('orderDate').value = todayStr();
 }
@@ -202,21 +198,273 @@ function saveOrder() {
   orders.push({
     id: Date.now(),
     shopId: parseInt(shopId),
-    product, qty: parseInt(qty), date, notes,
+    product: product,
+    qty: parseInt(qty),
+    date: date,
+    notes: notes,
     status: 'Pending',
     createdAt: new Date().toISOString()
   });
 
   saveData();
-  alert('Order save ho gaya! ✅');
+  const shop = shopkeepers.find(s => s.id == shopId);
+  alert('Order save ho gaya!\n' + shop.name + ' - ' + product + ' ' + qty + ' bags');
   document.getElementById('orderQty').value = '';
   document.getElementById('orderNotes').value = '';
+}
 
-  const shop = shopkeepers.find(s => s.id == shopId);
-  if (shop) alert(`${shop.name} ka ${product} ${qty} bags save ho gaya.`);
+// ================== ORDERS ==================
+function renderOrders() {
+  const search = document.getElementById('searchOrders').value.toLowerCase();
+  const status = document.getElementById('filterStatus').value;
+
+  let filtered = orders.slice().reverse();
+
+  if (search) {
+    filtered = filtered.filter(o => {
+      const shop = shopkeepers.find(s => s.id == o.shopId);
+      const shopName = shop ? shop.name.toLowerCase() : '';
+      return shopName.includes(search) || o.product.toLowerCase().includes(search);
+    });
+  }
+
+  if (status) filtered = filtered.filter(o => o.status === status);
+
+  const list = document.getElementById('ordersList');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty"><i class="fa fa-box-open"></i>Koi order nahi mila.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(o => {
+    const shop = shopkeepers.find(s => s.id == o.shopId);
+    const shopName = shop ? shop.name : 'Unknown';
+    return '<div class="item ' + (o.status === 'Pending' ? 'pending-item' : 'delivered-item') + '">' +
+      '<div class="item-info">' +
+        '<h4>' + shopName + '</h4>' +
+        '<p><i class="fa fa-box"></i> ' + o.product + ' — <b>' + o.qty + ' bags</b></p>' +
+        '<p class="date-line"><i class="fa fa-calendar"></i> ' + formatDate(o.date) + '</p>' +
+        (o.notes ? '<p class="notes"><i class="fa fa-sticky-note"></i> ' + o.notes + '</p>' : '') +
+        '<span class="badge ' + o.status.toLowerCase() + '">' + o.status + '</span>' +
+      '</div>' +
+      '<div class="item-actions">' +
+        (o.status === 'Pending' ? '<button class="btn small success" onclick="markDelivered(' + o.id + ')"><i class="fa fa-check"></i> Delivered</button>' : '') +
+        '<button class="btn small danger" onclick="deleteOrder(' + o.id + ')"><i class="fa fa-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function markDelivered(id) {
+  const o = orders.find(x => x.id == id);
+  if (o) o.status = 'Delivered';
+  saveData();
+  renderOrders();
+  renderDelivery();
+  renderDashboard();
+  renderHistory();
+  renderLoading();
+}
+
+function deleteOrder(id) {
+  if (!confirm('Order delete karein?')) return;
+  orders = orders.filter(x => x.id != id);
+  saveData();
+  renderOrders();
+  renderDelivery();
+  renderDashboard();
+  renderHistory();
+  renderLoading();
+}
+
+// ================== DELIVERY ==================
+function renderDelivery() {
+  const pending = orders.filter(o => o.status === 'Pending');
+  const list = document.getElementById('deliveryList');
+
+  if (pending.length === 0) {
+    list.innerHTML = '<div class="empty"><i class="fa fa-check-circle"></i>Koi pending order nahi. Sab deliver ho gaya!</div>';
+    return;
+  }
+
+  const grouped = {};
+  pending.forEach(o => {
+    if (!grouped[o.shopId]) grouped[o.shopId] = [];
+    grouped[o.shopId].push(o);
+  });
+
+  list.innerHTML = Object.keys(grouped).map(shopId => {
+    const shop = shopkeepers.find(s => s.id == shopId);
+    const shopName = shop ? shop.name : 'Unknown';
+    const shopOrders = grouped[shopId];
+    const totalBags = shopOrders.reduce((sum, o) => sum + o.qty, 0);
+
+    return '<div class="shop-group">' +
+      '<div class="shop-group-head">' +
+        '<div>' +
+          '<h4><i class="fa fa-store"></i> ' + shopName + '</h4>' +
+          (shop ? '<p><i class="fa fa-phone"></i> ' + shop.mobile + '</p>' : '') +
+        '</div>' +
+        '<span class="shop-group-total">' + totalBags + ' bags</span>' +
+      '</div>' +
+      shopOrders.map(o => 
+        '<div class="shop-order-line">' +
+          '<div>' +
+            '<span class="product-name">' + o.product + '</span> — ' +
+            '<span class="qty">' + o.qty + ' bags</span>' +
+            '<br><small>' + formatDate(o.date) + (o.notes ? ' • ' + o.notes : '') + '</small>' +
+          '</div>' +
+          '<button class="btn small success" onclick="markDelivered(' + o.id + ')"><i class="fa fa-check"></i> Delivered</button>' +
+        '</div>'
+      ).join('') +
+    '</div>';
+  }).join('');
 }
 
 // ================== LOADING (Truck View) ==================
 function renderLoading() {
   const dateVal = document.getElementById('loadingDate').value || todayStr();
-  const statusFilter =
+  const statusFilter = document.getElementById('loadingStatus').value;
+
+  let filtered = orders.filter(o => o.date === dateVal);
+  if (statusFilter === 'Pending') filtered = filtered.filter(o => o.status === 'Pending');
+
+  const list = document.getElementById('loadingList');
+  const summary = document.getElementById('loadSummary');
+
+  if (filtered.length === 0) {
+    summary.innerHTML = '<div><p>Aaj ka load</p><div class="big-num">0 bags</div></div>';
+    list.innerHTML = '<div class="empty"><i class="fa fa-truck"></i>Is din koi order nahi.</div>';
+    return;
+  }
+
+  const totalBags = filtered.reduce((sum, o) => sum + o.qty, 0);
+  const byProduct = {};
+  filtered.forEach(o => {
+    byProduct[o.product] = (byProduct[o.product] || 0) + o.qty;
+  });
+
+  summary.innerHTML = 
+    '<div>' +
+      '<p>' + formatDate(dateVal) + ' ka total load</p>' +
+      '<div class="big-num">' + totalBags + ' bags</div>' +
+    '</div>' +
+    '<div style="text-align:right;">' +
+      Object.keys(byProduct).map(p => '<p>📦 ' + p + ': <b>' + byProduct[p] + ' bags</b></p>').join('') +
+    '</div>';
+
+  const grouped = {};
+  filtered.forEach(o => {
+    if (!grouped[o.shopId]) grouped[o.shopId] = [];
+    grouped[o.shopId].push(o);
+  });
+
+  list.innerHTML = Object.keys(grouped).map(shopId => {
+    const shop = shopkeepers.find(s => s.id == shopId);
+    const shopName = shop ? shop.name : 'Unknown';
+    const shopOrders = grouped[shopId];
+    const shopTotal = shopOrders.reduce((sum, o) => sum + o.qty, 0);
+
+    return '<div class="shop-group">' +
+      '<div class="shop-group-head">' +
+        '<div>' +
+          '<h4><i class="fa fa-store"></i> ' + shopName + '</h4>' +
+          (shop ? '<p><i class="fa fa-map-marker-alt"></i> ' + (shop.address || 'Address nahi') + ' • <i class="fa fa-phone"></i> ' + shop.mobile + '</p>' : '') +
+        '</div>' +
+        '<span class="shop-group-total">' + shopTotal + ' bags</span>' +
+      '</div>' +
+      shopOrders.map(o => 
+        '<div class="shop-order-line">' +
+          '<div>' +
+            '<span class="product-name">' + o.product + '</span> — ' +
+            '<span class="qty">' + o.qty + ' bags</span>' +
+            (o.notes ? '<br><small>' + o.notes + '</small>' : '') +
+          '</div>' +
+          '<span class="badge ' + o.status.toLowerCase() + '">' + o.status + '</span>' +
+        '</div>'
+      ).join('') +
+    '</div>';
+  }).join('');
+}
+
+// ================== HISTORY ==================
+function renderHistory() {
+  const search = document.getElementById('historySearch').value.toLowerCase();
+  const dateFilter = document.getElementById('historyDate').value;
+
+  let filtered = orders.filter(o => o.status === 'Delivered');
+
+  if (search) {
+    filtered = filtered.filter(o => {
+      const shop = shopkeepers.find(s => s.id == o.shopId);
+      return shop && shop.name.toLowerCase().includes(search);
+    });
+  }
+
+  if (dateFilter) filtered = filtered.filter(o => o.date === dateFilter);
+  filtered.reverse();
+
+  const list = document.getElementById('historyList');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty"><i class="fa fa-clock"></i>Koi delivered order nahi mila.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(o => {
+    const shop = shopkeepers.find(s => s.id == o.shopId);
+    return '<div class="item delivered-item">' +
+      '<div class="item-info">' +
+        '<h4>' + (shop ? shop.name : 'Unknown') + '</h4>' +
+        '<p><i class="fa fa-box"></i> ' + o.product + ' — ' + o.qty + ' bags</p>' +
+        '<p class="date-line"><i class="fa fa-calendar"></i> ' + formatDate(o.date) + '</p>' +
+        (o.notes ? '<p class="notes">' + o.notes + '</p>' : '') +
+        '<span class="badge delivered">Delivered</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function clearHistoryFilter() {
+  document.getElementById('historySearch').value = '';
+  document.getElementById('historyDate').value = '';
+  renderHistory();
+}
+
+// ================== MODAL ==================
+function viewShopHistory(shopId) {
+  const shop = shopkeepers.find(s => s.id == shopId);
+  const shopOrders = orders.filter(o => o.shopId == shopId).reverse();
+
+  document.getElementById('modalTitle').textContent = shop.name + ' - Orders';
+  const body = document.getElementById('modalBody');
+
+  if (shopOrders.length === 0) {
+    body.innerHTML = '<div class="empty">Abhi koi order nahi.</div>';
+  } else {
+    body.innerHTML = shopOrders.map(o => 
+      '<div class="item ' + (o.status === 'Pending' ? 'pending-item' : 'delivered-item') + '" style="margin-bottom:8px;">' +
+        '<div class="item-info">' +
+          '<p><b>' + o.product + '</b> — ' + o.qty + ' bags</p>' +
+          '<p><small>' + formatDate(o.date) + '</small></p>' +
+          '<span class="badge ' + o.status.toLowerCase() + '">' + o.status + '</span>' +
+        '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+}
+
+// ================== INIT ==================
+window.onload = function() {
+  renderDashboard();
+  renderShopkeepers();
+  prepareOrderForm();
+  renderOrders();
+  renderDelivery();
+  renderHistory();
+};
