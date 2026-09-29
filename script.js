@@ -3,8 +3,9 @@ var shopkeepers = JSON.parse(localStorage.getItem('shopkeepers')) || [];
 var orders = JSON.parse(localStorage.getItem('orders')) || [];
 var products = JSON.parse(localStorage.getItem('products')) || ['Aata', 'Besan', 'Chawal ka Atta'];
 var settings = JSON.parse(localStorage.getItem('settings')) || { bizName: 'Atta Chakki', mode: 'auto' };
+var authUsers = JSON.parse(localStorage.getItem('authUsers')) || [];
+var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
-// Deliver modal state
 var currentDeliverOrderId = null;
 var currentDeliverProduct = null;
 
@@ -15,6 +16,110 @@ function saveData() {
   localStorage.setItem('settings', JSON.stringify(settings));
 }
 
+function saveAuth() {
+  localStorage.setItem('authUsers', JSON.stringify(authUsers));
+}
+
+// ========== AUTH ==========
+function doLogin() {
+  var user = document.getElementById('loginUser').value.trim();
+  var pass = document.getElementById('loginPass').value;
+  var err = document.getElementById('loginError');
+  err.textContent = '';
+
+  if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
+
+  var found = null;
+  for (var i = 0; i < authUsers.length; i++) {
+    if (authUsers[i].user === user && authUsers[i].pass === pass) found = authUsers[i];
+  }
+
+  if (!found) { err.textContent = 'Ghalat username ya password'; return; }
+
+  isLoggedIn = true;
+  localStorage.setItem('isLoggedIn', 'true');
+  showApp();
+  alert('Welcome ' + user + '!');
+}
+
+function doSignup() {
+  var user = document.getElementById('signupUser').value.trim();
+  var pass = document.getElementById('signupPass').value;
+  var pass2 = document.getElementById('signupPass2').value;
+  var err = document.getElementById('loginError');
+  err.textContent = '';
+
+  if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
+  if (pass.length < 4) { err.textContent = 'Password kam az kam 4 characters'; return; }
+  if (pass !== pass2) { err.textContent = 'Password match nahi kar rahe'; return; }
+
+  for (var i = 0; i < authUsers.length; i++) {
+    if (authUsers[i].user === user) { err.textContent = 'Ye username pehle se mojood hai'; return; }
+  }
+
+  authUsers.push({ user: user, pass: pass });
+  saveAuth();
+  alert('Account ban gaya! Ab login karein.');
+  hideSignup();
+  document.getElementById('loginUser').value = user;
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginPass').focus();
+}
+
+function showSignup() {
+  document.getElementById('signupSection').style.display = 'block';
+  document.getElementById('loginError').textContent = '';
+}
+
+function hideSignup() {
+  document.getElementById('signupSection').style.display = 'none';
+  document.getElementById('signupUser').value = '';
+  document.getElementById('signupPass').value = '';
+  document.getElementById('signupPass2').value = '';
+}
+
+function doLogout() {
+  if (!confirm('Logout karna hai?')) return;
+  isLoggedIn = false;
+  localStorage.setItem('isLoggedIn', 'false');
+  document.getElementById('appWrapper').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  hideSignup();
+}
+
+function changePassword() {
+  var oldP = document.getElementById('oldPass').value;
+  var newP = document.getElementById('newPass').value;
+  if (!oldP || !newP) { alert('Dono password daalein'); return; }
+  if (newP.length < 4) { alert('Naya password kam az kam 4 characters'); return; }
+
+  for (var i = 0; i < authUsers.length; i++) {
+    if (authUsers[i].pass === oldP) {
+      authUsers[i].pass = newP;
+      saveAuth();
+      document.getElementById('oldPass').value = '';
+      document.getElementById('newPass').value = '';
+      alert('Password change ho gaya!');
+      return;
+    }
+  }
+  alert('Purana password ghalat hai');
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appWrapper').style.display = 'block';
+  applySettings();
+  renderDashboard();
+  renderShopkeepers();
+  prepareOrderForm();
+  renderHistory();
+  renderSettings();
+}
+
+// ========== HELPERS ==========
 function todayStr() {
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -53,7 +158,6 @@ function totalKgText(totalKg) {
   return qtyText(m, k);
 }
 
-// Product summary: maund jama, kg alag
 function productQtySummary(items) {
   var totalMaund = 0;
   var kgList = [];
@@ -70,7 +174,6 @@ function productQtySummary(items) {
   return parts.join(' ');
 }
 
-// Get pending items of a product from order
 function getPendingItemsForProduct(order, product) {
   var pending = [];
   for (var i = 0; i < order.items.length; i++) {
@@ -89,7 +192,6 @@ function getPendingItemsForProduct(order, product) {
   return pending;
 }
 
-// Check if order fully delivered
 function checkOrderDelivered(order) {
   for (var i = 0; i < order.items.length; i++) {
     var it = order.items[i];
@@ -198,10 +300,8 @@ function addProduct() {
   if (!name) { alert('Naam likhein'); return; }
   if (products.indexOf(name) !== -1) { alert('Already mojood hai'); return; }
   products.push(name);
-  saveData();
-  input.value = '';
-  renderProductsList();
-  prepareOrderForm();
+  saveData(); input.value = '';
+  renderProductsList(); prepareOrderForm();
 }
 
 function deleteProduct(i) {
@@ -210,7 +310,7 @@ function deleteProduct(i) {
   saveData(); renderProductsList(); prepareOrderForm();
 }
 
-// DASHBOARD
+// ========== DASHBOARD ==========
 function renderDashboard() {
   var today = todayStr();
   var dateLabel = document.getElementById('todayDateLabel');
@@ -232,7 +332,6 @@ function renderDashboard() {
       totalKg += (remM * 40) + remK;
     }
   }
-
   document.getElementById('todayLoadBadge').textContent = totalKgText(totalKg);
 
   var list = document.getElementById('todayLoadList');
@@ -266,14 +365,13 @@ function renderDashboard() {
   list.innerHTML = rows || '<div class="empty">Sab deliver ho gaya!</div>';
 }
 
+// ========== SHOPKEEPERS ==========
 function saveShopkeeper() {
   var id = document.getElementById('shopId').value;
   var name = document.getElementById('shopName').value.trim();
   var mobile = document.getElementById('shopMobile').value.trim();
   var address = document.getElementById('shopAddress').value.trim();
-
   if (!name || !mobile) { alert('Naam aur mobile zaroori!'); return; }
-
   if (id) {
     for (var i = 0; i < shopkeepers.length; i++) {
       if (shopkeepers[i].id == id) {
@@ -354,6 +452,7 @@ function renderShopkeepers() {
   list.innerHTML = html;
 }
 
+// ========== NEW ORDER ==========
 function prepareOrderForm() {
   var select = document.getElementById('orderShop');
   if (!select) return;
@@ -470,7 +569,7 @@ function saveMultiOrder() {
   document.getElementById('orderNotes').value = '';
 }
 
-// ORDERS PAGE - Har product ke saath deliver button
+// ========== ORDERS PAGE ==========
 function renderOrdersPage() {
   var dateVal = document.getElementById('ordersDate').value || todayStr();
   var statusFilter = document.getElementById('ordersStatus').value;
@@ -503,7 +602,6 @@ function renderOrdersPage() {
       totalKg += (remM * 40) + remK;
     }
   }
-
   summary.innerHTML = '<div><p>' + formatDate(dateVal) + ' ka baqi load</p><div class="big-num">' + totalKgText(totalKg) + '</div></div>';
 
   var grouped = {};
@@ -537,7 +635,6 @@ function renderOrdersPage() {
       }
     }
 
-    // Ek shop ke andar, order-wise + product-wise lines
     var linesHtml = '';
     for (var i = 0; i < sOrders.length; i++) {
       var o = sOrders[i];
@@ -577,7 +674,7 @@ function renderOrdersPage() {
   list.innerHTML = html;
 }
 
-// DELIVER MODAL - Product ke liye
+// ========== DELIVER MODAL ==========
 function openDeliverModal(orderId, product) {
   currentDeliverOrderId = orderId;
   currentDeliverProduct = product;
@@ -594,7 +691,6 @@ function openDeliverModal(orderId, product) {
   }
 
   document.getElementById('deliverTitle').textContent = product + ' - ' + shopName;
-
   var pending = getPendingItemsForProduct(order, product);
   var body = document.getElementById('deliverBody');
   var html = '';
@@ -615,7 +711,6 @@ function openDeliverModal(orderId, product) {
       '</div>' +
     '</div>';
   }
-
   body.innerHTML = html;
   document.getElementById('deliverModal').classList.add('active');
 }
@@ -628,7 +723,6 @@ function closeDeliverModal() {
 
 function confirmDelivery() {
   if (!currentDeliverOrderId || !currentDeliverProduct) return;
-
   var order = null;
   for (var i = 0; i < orders.length; i++) {
     if (orders[i].id == currentDeliverOrderId) order = orders[i];
@@ -642,38 +736,28 @@ function confirmDelivery() {
     var idx = parseInt(maundInputs[i].getAttribute('data-idx'));
     var dm = parseInt(maundInputs[i].value);
     var dk = parseInt(kgInputs[i].value);
-
     var it = order.items[idx];
     var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
     var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
-
     if (isNaN(dm)) dm = remM;
     if (isNaN(dk)) dk = remK;
-
     if (dm > remM) dm = remM;
     if (dk > remK) dk = remK;
     if (dm < 0) dm = 0;
     if (dk < 0) dk = 0;
-
     it.deliveredMaund = (parseInt(it.deliveredMaund) || 0) + dm;
     it.deliveredKg = (parseInt(it.deliveredKg) || 0) + dk;
   }
 
-  // Update order status
   order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
-
   saveData();
   closeDeliverModal();
-  renderOrdersPage();
-  renderDashboard();
-  renderDelivery();
-  renderHistory();
+  renderOrdersPage(); renderDashboard(); renderDelivery(); renderHistory();
   alert('Deliver ho gaya!');
 }
 
 function markAllDelivered() {
   if (!currentDeliverOrderId || !currentDeliverProduct) return;
-
   var order = null;
   for (var i = 0; i < orders.length; i++) {
     if (orders[i].id == currentDeliverOrderId) order = orders[i];
@@ -689,34 +773,13 @@ function markAllDelivered() {
   }
 
   order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
-
   saveData();
   closeDeliverModal();
-  renderOrdersPage();
-  renderDashboard();
-  renderDelivery();
-  renderHistory();
+  renderOrdersPage(); renderDashboard(); renderDelivery(); renderHistory();
   alert('Poora deliver ho gaya!');
 }
 
-function markDelivered(id) {
-  for (var i = 0; i < orders.length; i++) {
-    if (orders[i].id == id) {
-      var o = orders[i];
-      for (var j = 0; j < o.items.length; j++) {
-        o.items[j].deliveredMaund = parseInt(o.items[j].maund) || 0;
-        o.items[j].deliveredKg = parseInt(o.items[j].kg) || 0;
-      }
-      o.status = 'Delivered';
-    }
-  }
-  saveData();
-  renderOrdersPage();
-  renderDelivery();
-  renderDashboard();
-  renderHistory();
-}
-
+// ========== DELIVERY PAGE ==========
 function renderDelivery() {
   var pending = [];
   for (var i = 0; i < orders.length; i++) {
@@ -794,6 +857,7 @@ function renderDelivery() {
   list.innerHTML = html;
 }
 
+// ========== HISTORY ==========
 function renderHistory() {
   var searchEl = document.getElementById('historySearch');
   var dateEl = document.getElementById('historyDate');
@@ -850,6 +914,7 @@ function clearHistoryFilter() {
   renderHistory();
 }
 
+// ========== MODAL ==========
 function viewShopHistory(shopId) {
   var shopName = '';
   for (var i = 0; i < shopkeepers.length; i++) {
@@ -872,10 +937,12 @@ function viewShopHistory(shopId) {
       for (var j = 0; j < o.items.length; j++) {
         itemsHtml += '<p><b>' + o.items[j].product + '</b> — ' + qtyText(o.items[j].maund, o.items[j].kg) + '</p>';
       }
+      var st = o.status.toLowerCase();
+      if (o.status === 'Partial') st = 'partial';
       html += '<div class="item ' + (o.status === 'Delivered' ? 'delivered-item' : 'pending-item') + '" style="margin-bottom:10px;">' +
         '<div class="item-info">' + itemsHtml +
           '<p><small>' + formatDate(o.date) + '</small></p>' +
-          '<span class="badge ' + o.status.toLowerCase() + '">' + o.status + '</span>' +
+          '<span class="badge ' + st + '">' + o.status + '</span>' +
         '</div>' +
       '</div>';
     }
@@ -888,11 +955,13 @@ function closeModal() {
   document.getElementById('modal').classList.remove('active');
 }
 
+// ========== INIT ==========
 window.addEventListener('load', function() {
   applySettings();
-  renderDashboard();
-  renderShopkeepers();
-  prepareOrderForm();
-  renderHistory();
-  renderSettings();
+  if (isLoggedIn) {
+    showApp();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appWrapper').style.display = 'none';
+  }
 });
