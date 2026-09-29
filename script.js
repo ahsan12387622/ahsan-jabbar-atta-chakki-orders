@@ -4,6 +4,10 @@ var orders = JSON.parse(localStorage.getItem('orders')) || [];
 var products = JSON.parse(localStorage.getItem('products')) || ['Aata', 'Besan', 'Chawal ka Atta'];
 var settings = JSON.parse(localStorage.getItem('settings')) || { bizName: 'Atta Chakki', mode: 'auto' };
 
+// Deliver modal state
+var currentDeliverOrderId = null;
+var currentDeliverProduct = null;
+
 function saveData() {
   localStorage.setItem('shopkeepers', JSON.stringify(shopkeepers));
   localStorage.setItem('orders', JSON.stringify(orders));
@@ -49,7 +53,7 @@ function totalKgText(totalKg) {
   return qtyText(m, k);
 }
 
-// ** NAYA FUNCTION: Maund jama karo, Kg alag rakho **
+// Product summary: maund jama, kg alag
 function productQtySummary(items) {
   var totalMaund = 0;
   var kgList = [];
@@ -61,11 +65,41 @@ function productQtySummary(items) {
   }
   var parts = [];
   if (totalMaund > 0) parts.push(totalMaund + ' maund');
-  for (var i = 0; i < kgList.length; i++) {
-    parts.push(kgList[i] + ' kg');
-  }
+  for (var i = 0; i < kgList.length; i++) parts.push(kgList[i] + ' kg');
   if (parts.length === 0) return '0 kg';
   return parts.join(' ');
+}
+
+// Get pending items of a product from order
+function getPendingItemsForProduct(order, product) {
+  var pending = [];
+  for (var i = 0; i < order.items.length; i++) {
+    var it = order.items[i];
+    if (it.product !== product) continue;
+    var m = parseInt(it.maund) || 0;
+    var k = parseInt(it.kg) || 0;
+    var dm = parseInt(it.deliveredMaund) || 0;
+    var dk = parseInt(it.deliveredKg) || 0;
+    var remM = m - dm;
+    var remK = k - dk;
+    if (remM > 0 || remK > 0) {
+      pending.push({ item: it, index: i, maund: remM, kg: remK });
+    }
+  }
+  return pending;
+}
+
+// Check if order fully delivered
+function checkOrderDelivered(order) {
+  for (var i = 0; i < order.items.length; i++) {
+    var it = order.items[i];
+    var m = parseInt(it.maund) || 0;
+    var k = parseInt(it.kg) || 0;
+    var dm = parseInt(it.deliveredMaund) || 0;
+    var dk = parseInt(it.deliveredKg) || 0;
+    if (dm < m || dk < k) return false;
+  }
+  return true;
 }
 
 function showPage(pageId, btn) {
@@ -105,12 +139,9 @@ function applySettings() {
 
   var body = document.body;
   body.classList.remove('mobile-mode', 'pc-mode');
-
-  if (settings.mode === 'mobile') {
-    body.classList.add('mobile-mode');
-  } else if (settings.mode === 'pc') {
-    body.classList.add('pc-mode');
-  } else {
+  if (settings.mode === 'mobile') body.classList.add('mobile-mode');
+  else if (settings.mode === 'pc') body.classList.add('pc-mode');
+  else {
     if (window.innerWidth < 768) body.classList.add('mobile-mode');
     else body.classList.add('pc-mode');
   }
@@ -118,17 +149,13 @@ function applySettings() {
 
 function setMode(m) {
   settings.mode = m;
-  saveData();
-  applySettings();
-  renderSettings();
+  saveData(); applySettings(); renderSettings();
   alert('Mode: ' + (m === 'mobile' ? 'Mobile' : 'PC'));
 }
 
 function toggleMode() {
-  if (settings.mode === 'mobile') settings.mode = 'pc';
-  else settings.mode = 'mobile';
-  saveData();
-  applySettings();
+  settings.mode = settings.mode === 'mobile' ? 'pc' : 'mobile';
+  saveData(); applySettings();
 }
 
 function saveBizName() {
@@ -136,26 +163,17 @@ function saveBizName() {
   var name = el.value.trim();
   if (!name) { alert('Naam likhein'); return; }
   settings.bizName = name;
-  saveData();
-  applySettings();
+  saveData(); applySettings();
   alert('Naam save ho gaya!');
 }
 
 function renderSettings() {
   var nameEl = document.getElementById('setBizName');
   if (nameEl) nameEl.value = settings.bizName;
-
   var pcBtn = document.getElementById('modePC');
   var mobBtn = document.getElementById('modeMobile');
-  if (pcBtn) {
-    if (settings.mode === 'pc') pcBtn.classList.add('active');
-    else pcBtn.classList.remove('active');
-  }
-  if (mobBtn) {
-    if (settings.mode === 'mobile') mobBtn.classList.add('active');
-    else mobBtn.classList.remove('active');
-  }
-
+  if (pcBtn) pcBtn.classList.toggle('active', settings.mode === 'pc');
+  if (mobBtn) mobBtn.classList.toggle('active', settings.mode === 'mobile');
   renderProductsList();
 }
 
@@ -189,12 +207,10 @@ function addProduct() {
 function deleteProduct(i) {
   if (!confirm('Delete: ' + products[i] + '?')) return;
   products.splice(i, 1);
-  saveData();
-  renderProductsList();
-  prepareOrderForm();
+  saveData(); renderProductsList(); prepareOrderForm();
 }
 
-// DASHBOARD - Maund jama, Kg alag
+// DASHBOARD
 function renderDashboard() {
   var today = todayStr();
   var dateLabel = document.getElementById('todayDateLabel');
@@ -202,13 +218,19 @@ function renderDashboard() {
 
   document.getElementById('totalShopkeepers').textContent = shopkeepers.length;
   document.getElementById('todayOrders').textContent = orders.filter(function(o) { return o.date === today; }).length;
-  document.getElementById('pendingOrders').textContent = orders.filter(function(o) { return o.status === 'Pending'; }).length;
+  document.getElementById('pendingOrders').textContent = orders.filter(function(o) { return o.status === 'Pending' || o.status === 'Partial'; }).length;
   document.getElementById('deliveredOrders').textContent = orders.filter(function(o) { return o.status === 'Delivered'; }).length;
 
-  var todayPending = orders.filter(function(o) { return o.date === today && o.status === 'Pending'; });
+  var todayPending = orders.filter(function(o) { return o.date === today && (o.status === 'Pending' || o.status === 'Partial'); });
   var totalKg = 0;
   for (var i = 0; i < todayPending.length; i++) {
-    totalKg += todayPending[i].totalKg || 0;
+    var o = todayPending[i];
+    for (var j = 0; j < o.items.length; j++) {
+      var it = o.items[j];
+      var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+      var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+      totalKg += (remM * 40) + remK;
+    }
   }
 
   document.getElementById('todayLoadBadge').textContent = totalKgText(totalKg);
@@ -219,14 +241,17 @@ function renderDashboard() {
     return;
   }
 
-  // Product ke hisaab se group karo
   var byProduct = {};
   for (var i = 0; i < todayPending.length; i++) {
-    var items = todayPending[i].items || [];
-    for (var j = 0; j < items.length; j++) {
-      var p = items[j].product;
+    var o = todayPending[i];
+    for (var j = 0; j < o.items.length; j++) {
+      var it = o.items[j];
+      var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+      var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+      if (remM <= 0 && remK <= 0) continue;
+      var p = it.product;
       if (!byProduct[p]) byProduct[p] = [];
-      byProduct[p].push({ maund: items[j].maund, kg: items[j].kg });
+      byProduct[p].push({ maund: remM, kg: remK });
     }
   }
 
@@ -238,7 +263,7 @@ function renderDashboard() {
       '<span class="qty">' + productQtySummary(byProduct[keys[k]]) + '</span>' +
     '</div>';
   }
-  list.innerHTML = rows;
+  list.innerHTML = rows || '<div class="empty">Sab deliver ho gaya!</div>';
 }
 
 function saveShopkeeper() {
@@ -260,10 +285,7 @@ function saveShopkeeper() {
   } else {
     shopkeepers.push({ id: Date.now(), name: name, mobile: mobile, address: address });
   }
-  saveData();
-  resetShopForm();
-  renderShopkeepers();
-  renderDashboard();
+  saveData(); resetShopForm(); renderShopkeepers(); renderDashboard();
   alert('Shopkeeper save!');
 }
 
@@ -296,9 +318,7 @@ function deleteShopkeeper(id) {
     if (shopkeepers[i].id != id) newList.push(shopkeepers[i]);
   }
   shopkeepers = newList;
-  saveData();
-  renderShopkeepers();
-  renderDashboard();
+  saveData(); renderShopkeepers(); renderDashboard();
 }
 
 function renderShopkeepers() {
@@ -310,12 +330,11 @@ function renderShopkeepers() {
   var html = '';
   for (var i = 0; i < shopkeepers.length; i++) {
     var s = shopkeepers[i];
-    var total = 0;
-    var pending = 0;
+    var total = 0, pending = 0;
     for (var j = 0; j < orders.length; j++) {
       if (orders[j].shopId == s.id) {
         total++;
-        if (orders[j].status === 'Pending') pending++;
+        if (orders[j].status === 'Pending' || orders[j].status === 'Partial') pending++;
       }
     }
     html += '<div class="item">' +
@@ -338,7 +357,6 @@ function renderShopkeepers() {
 function prepareOrderForm() {
   var select = document.getElementById('orderShop');
   if (!select) return;
-
   if (shopkeepers.length === 0) {
     select.innerHTML = '<option value="">Pehle shopkeeper add karein</option>';
   } else {
@@ -348,15 +366,10 @@ function prepareOrderForm() {
     }
     select.innerHTML = html;
   }
-
   var dEl = document.getElementById('orderDate');
   if (dEl) dEl.value = todayStr();
-
   var rows = document.getElementById('productRows');
-  if (rows) {
-    rows.innerHTML = '';
-    addProductRow();
-  }
+  if (rows) { rows.innerHTML = ''; addProductRow(); }
   updateSummary();
 }
 
@@ -364,48 +377,26 @@ function addProductRow() {
   var container = document.getElementById('productRows');
   if (!container) return;
   var idx = container.children.length;
-
-  if (products.length === 0) {
-    alert('Pehle Settings mein product add karein');
-    return;
-  }
-
+  if (products.length === 0) { alert('Pehle Settings mein product add karein'); return; }
   var div = document.createElement('div');
   div.className = 'product-row';
-
   var productsHtml = '';
   for (var i = 0; i < products.length; i++) {
     productsHtml += '<option value="' + products[i] + '">' + products[i] + '</option>';
   }
-
-  var removeBtn = '';
-  if (idx > 0) {
-    removeBtn = '<button class="remove-btn" onclick="removeProductRow(this)"><i class="fa fa-trash"></i></button>';
-  }
-
+  var removeBtn = idx > 0 ? '<button class="remove-btn" onclick="removeProductRow(this)"><i class="fa fa-trash"></i></button>' : '';
   div.innerHTML = '<div class="product-row-head">' +
-      '<h4><i class="fa fa-box"></i> Product #' + (idx + 1) + '</h4>' +
-      removeBtn +
+      '<h4><i class="fa fa-box"></i> Product #' + (idx + 1) + '</h4>' + removeBtn +
     '</div>' +
     '<div class="form-group">' +
       '<label>Product</label>' +
       '<select class="prod-select" onchange="updateSummary()">' + productsHtml + '</select>' +
     '</div>' +
     '<div class="qty-row">' +
-      '<div class="form-group">' +
-        '<label>Maund</label>' +
-        '<input type="number" class="maund-input" min="0" placeholder="0" oninput="updateSummary()" />' +
-      '</div>' +
-      '<div class="form-group">' +
-        '<label>Kg</label>' +
-        '<input type="number" class="kg-input" min="0" max="39" placeholder="0" oninput="updateSummary()" />' +
-      '</div>' +
-      '<div class="form-group">' +
-        '<label>Total</label>' +
-        '<input type="text" class="total-input" readonly />' +
-      '</div>' +
+      '<div class="form-group"><label>Maund</label><input type="number" class="maund-input" min="0" placeholder="0" oninput="updateSummary()" /></div>' +
+      '<div class="form-group"><label>Kg</label><input type="number" class="kg-input" min="0" max="39" placeholder="0" oninput="updateSummary()" /></div>' +
+      '<div class="form-group"><label>Total</label><input type="text" class="total-input" readonly /></div>' +
     '</div>';
-
   container.appendChild(div);
   updateSummary();
 }
@@ -421,9 +412,7 @@ function removeProductRow(btn) {
 
 function updateSummary() {
   var rows = document.querySelectorAll('.product-row');
-  var totalKg = 0;
-  var lines = [];
-
+  var totalKg = 0, lines = [];
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     var prod = row.querySelector('.prod-select').value;
@@ -431,26 +420,17 @@ function updateSummary() {
     var k = parseInt(row.querySelector('.kg-input').value) || 0;
     var rowKg = m * 40 + k;
     row.querySelector('.total-input').value = qtyText(m, k);
-    if (rowKg > 0) {
-      totalKg += rowKg;
-      lines.push({ product: prod, maund: m, kg: k });
-    }
+    if (rowKg > 0) { totalKg += rowKg; lines.push({ product: prod, maund: m, kg: k }); }
   }
-
   var summary = document.getElementById('orderSummary');
   if (!summary) return;
-
   if (lines.length === 0) {
     summary.innerHTML = '<h4>Order Summary</h4><p style="color:#64748b;font-size:14px">Abhi koi quantity nahi daali</p>';
     return;
   }
-
   var html = '<h4>Order Summary</h4>';
   for (var i = 0; i < lines.length; i++) {
-    html += '<div class="summary-line">' +
-      '<span>' + lines[i].product + '</span>' +
-      '<span>' + qtyText(lines[i].maund, lines[i].kg) + '</span>' +
-    '</div>';
+    html += '<div class="summary-line"><span>' + lines[i].product + '</span><span>' + qtyText(lines[i].maund, lines[i].kg) + '</span></div>';
   }
   html += '<div class="summary-line"><span>TOTAL</span><span>' + totalKgText(totalKg) + '</span></div>';
   summary.innerHTML = html;
@@ -460,14 +440,10 @@ function saveMultiOrder() {
   var shopId = document.getElementById('orderShop').value;
   var date = document.getElementById('orderDate').value;
   var notes = document.getElementById('orderNotes').value.trim();
-
   if (!shopId) { alert('Shopkeeper chunein!'); return; }
   if (!date) { alert('Date chunein!'); return; }
-
   var rows = document.querySelectorAll('.product-row');
-  var items = [];
-  var totalKg = 0;
-
+  var items = [], totalKg = 0;
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     var prod = row.querySelector('.prod-select').value;
@@ -475,36 +451,26 @@ function saveMultiOrder() {
     var k = parseInt(row.querySelector('.kg-input').value) || 0;
     var rowKg = m * 40 + k;
     if (rowKg > 0) {
-      items.push({ product: prod, maund: m, kg: k, totalKg: rowKg });
+      items.push({ product: prod, maund: m, kg: k, deliveredMaund: 0, deliveredKg: 0, totalKg: rowKg });
       totalKg += rowKg;
     }
   }
-
   if (items.length === 0) { alert('Kam az kam ek product ki quantity daalein!'); return; }
-
   orders.push({
-    id: Date.now(),
-    shopId: parseInt(shopId),
-    items: items,
-    totalKg: totalKg,
-    date: date,
-    notes: notes,
-    status: 'Pending',
-    createdAt: new Date().toISOString()
+    id: Date.now(), shopId: parseInt(shopId), items: items, totalKg: totalKg,
+    date: date, notes: notes, status: 'Pending', createdAt: new Date().toISOString()
   });
-
   saveData();
   var shopName = '';
   for (var i = 0; i < shopkeepers.length; i++) {
     if (shopkeepers[i].id == shopId) shopName = shopkeepers[i].name;
   }
   alert('Order save!\n' + shopName + '\n' + items.length + ' products');
-
   prepareOrderForm();
   document.getElementById('orderNotes').value = '';
 }
 
-// ORDERS PAGE - Maund jama, Kg alag
+// ORDERS PAGE - Har product ke saath deliver button
 function renderOrdersPage() {
   var dateVal = document.getElementById('ordersDate').value || todayStr();
   var statusFilter = document.getElementById('ordersStatus').value;
@@ -513,7 +479,7 @@ function renderOrdersPage() {
   for (var i = 0; i < orders.length; i++) {
     var o = orders[i];
     if (o.date !== dateVal) continue;
-    if (statusFilter === 'Pending' && o.status !== 'Pending') continue;
+    if (statusFilter === 'Pending' && o.status === 'Delivered') continue;
     if (statusFilter === 'Delivered' && o.status !== 'Delivered') continue;
     filtered.push(o);
   }
@@ -528,9 +494,17 @@ function renderOrdersPage() {
   }
 
   var totalKg = 0;
-  for (var i = 0; i < filtered.length; i++) totalKg += filtered[i].totalKg || 0;
+  for (var i = 0; i < filtered.length; i++) {
+    var o = filtered[i];
+    for (var j = 0; j < o.items.length; j++) {
+      var it = o.items[j];
+      var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+      var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+      totalKg += (remM * 40) + remK;
+    }
+  }
 
-  summary.innerHTML = '<div><p>' + formatDate(dateVal) + ' ka total load</p><div class="big-num">' + totalKgText(totalKg) + '</div></div>';
+  summary.innerHTML = '<div><p>' + formatDate(dateVal) + ' ka baqi load</p><div class="big-num">' + totalKgText(totalKg) + '</div></div>';
 
   var grouped = {};
   for (var i = 0; i < filtered.length; i++) {
@@ -543,9 +517,7 @@ function renderOrdersPage() {
   var keys = Object.keys(grouped);
   for (var k = 0; k < keys.length; k++) {
     var shopId = keys[k];
-    var shopName = 'Unknown';
-    var shopAddress = '';
-    var shopMobile = '';
+    var shopName = 'Unknown', shopAddress = '—', shopMobile = '';
     for (var i = 0; i < shopkeepers.length; i++) {
       if (shopkeepers[i].id == shopId) {
         shopName = shopkeepers[i].name;
@@ -555,41 +527,39 @@ function renderOrdersPage() {
     }
     var sOrders = grouped[shopId];
     var shopKg = 0;
-    for (var i = 0; i < sOrders.length; i++) shopKg += sOrders[i].totalKg || 0;
-
-    var hasPending = false;
     for (var i = 0; i < sOrders.length; i++) {
-      if (sOrders[i].status === 'Pending') hasPending = true;
-    }
-
-    // Maund jama, Kg alag
-    var byProduct = {};
-    for (var i = 0; i < sOrders.length; i++) {
-      var items = sOrders[i].items || [];
-      for (var j = 0; j < items.length; j++) {
-        var p = items[j].product;
-        if (!byProduct[p]) byProduct[p] = [];
-        byProduct[p].push({ maund: items[j].maund, kg: items[j].kg });
+      var o = sOrders[i];
+      for (var j = 0; j < o.items.length; j++) {
+        var it = o.items[j];
+        var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+        var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+        shopKg += (remM * 40) + remK;
       }
     }
 
-    var rowsHtml = '';
-    var pKeys = Object.keys(byProduct);
-    for (var kk = 0; kk < pKeys.length; kk++) {
-      rowsHtml += '<div class="shop-order-line">' +
-        '<span class="product-name">📦 ' + pKeys[kk] + '</span>' +
-        '<span class="qty">' + productQtySummary(byProduct[pKeys[kk]]) + '</span>' +
-      '</div>';
-    }
-
-    var pendingBtns = '';
-    if (hasPending) {
-      for (var i = 0; i < sOrders.length; i++) {
-        if (sOrders[i].status === 'Pending') {
-          pendingBtns += '<div style="text-align:right; margin-top:8px;">' +
-            '<button class="btn small success" onclick="markDelivered(' + sOrders[i].id + ')"><i class="fa fa-check"></i> Delivered</button>' +
-          '</div>';
+    // Ek shop ke andar, order-wise + product-wise lines
+    var linesHtml = '';
+    for (var i = 0; i < sOrders.length; i++) {
+      var o = sOrders[i];
+      for (var j = 0; j < o.items.length; j++) {
+        var it = o.items[j];
+        var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+        var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+        if (remM <= 0 && remK <= 0) continue;
+        var deliveredText = '';
+        if (it.deliveredMaund > 0 || it.deliveredKg > 0) {
+          deliveredText = '<div class="p-delivered">✓ ' + qtyText(it.deliveredMaund, it.deliveredKg) + ' deliver ho chuka</div>';
         }
+        linesHtml += '<div class="product-line">' +
+          '<div class="product-line-info">' +
+            '<span class="p-name">📦 ' + it.product + '</span>' +
+            '<span class="p-qty">' + qtyText(remM, remK) + '</span>' +
+            deliveredText +
+          '</div>' +
+          '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')">' +
+            '<i class="fa fa-check"></i> Delivered' +
+          '</button>' +
+        '</div>';
       }
     }
 
@@ -601,16 +571,144 @@ function renderOrdersPage() {
         '</div>' +
         '<span class="shop-group-total">' + totalKgText(shopKg) + '</span>' +
       '</div>' +
-      rowsHtml +
-      pendingBtns +
+      linesHtml +
     '</div>';
   }
   list.innerHTML = html;
 }
 
+// DELIVER MODAL - Product ke liye
+function openDeliverModal(orderId, product) {
+  currentDeliverOrderId = orderId;
+  currentDeliverProduct = product;
+
+  var order = null;
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].id == orderId) order = orders[i];
+  }
+  if (!order) return;
+
+  var shopName = '';
+  for (var i = 0; i < shopkeepers.length; i++) {
+    if (shopkeepers[i].id == order.shopId) shopName = shopkeepers[i].name;
+  }
+
+  document.getElementById('deliverTitle').textContent = product + ' - ' + shopName;
+
+  var pending = getPendingItemsForProduct(order, product);
+  var body = document.getElementById('deliverBody');
+  var html = '';
+
+  for (var i = 0; i < pending.length; i++) {
+    var p = pending[i];
+    var totalText = qtyText(p.maund, p.kg);
+    html += '<div class="deliver-row">' +
+      '<div class="deliver-row-head">Baqi: ' + totalText + '</div>' +
+      '<div class="deliver-row-sub">Kitna deliver ho raha hai? (khaali chhoro to poora)</div>' +
+      '<div class="deliver-qty-row">' +
+        '<div class="form-group"><label>Maund</label>' +
+          '<input type="number" class="deliver-maund" min="0" max="' + p.maund + '" placeholder="' + p.maund + '" data-idx="' + p.index + '" />' +
+        '</div>' +
+        '<div class="form-group"><label>Kg</label>' +
+          '<input type="number" class="deliver-kg" min="0" max="' + p.kg + '" placeholder="' + p.kg + '" data-idx="' + p.index + '" />' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  body.innerHTML = html;
+  document.getElementById('deliverModal').classList.add('active');
+}
+
+function closeDeliverModal() {
+  document.getElementById('deliverModal').classList.remove('active');
+  currentDeliverOrderId = null;
+  currentDeliverProduct = null;
+}
+
+function confirmDelivery() {
+  if (!currentDeliverOrderId || !currentDeliverProduct) return;
+
+  var order = null;
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].id == currentDeliverOrderId) order = orders[i];
+  }
+  if (!order) return;
+
+  var maundInputs = document.querySelectorAll('.deliver-maund');
+  var kgInputs = document.querySelectorAll('.deliver-kg');
+
+  for (var i = 0; i < maundInputs.length; i++) {
+    var idx = parseInt(maundInputs[i].getAttribute('data-idx'));
+    var dm = parseInt(maundInputs[i].value);
+    var dk = parseInt(kgInputs[i].value);
+
+    var it = order.items[idx];
+    var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+    var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+
+    if (isNaN(dm)) dm = remM;
+    if (isNaN(dk)) dk = remK;
+
+    if (dm > remM) dm = remM;
+    if (dk > remK) dk = remK;
+    if (dm < 0) dm = 0;
+    if (dk < 0) dk = 0;
+
+    it.deliveredMaund = (parseInt(it.deliveredMaund) || 0) + dm;
+    it.deliveredKg = (parseInt(it.deliveredKg) || 0) + dk;
+  }
+
+  // Update order status
+  order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
+
+  saveData();
+  closeDeliverModal();
+  renderOrdersPage();
+  renderDashboard();
+  renderDelivery();
+  renderHistory();
+  alert('Deliver ho gaya!');
+}
+
+function markAllDelivered() {
+  if (!currentDeliverOrderId || !currentDeliverProduct) return;
+
+  var order = null;
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].id == currentDeliverOrderId) order = orders[i];
+  }
+  if (!order) return;
+
+  for (var i = 0; i < order.items.length; i++) {
+    var it = order.items[i];
+    if (it.product === currentDeliverProduct) {
+      it.deliveredMaund = parseInt(it.maund) || 0;
+      it.deliveredKg = parseInt(it.kg) || 0;
+    }
+  }
+
+  order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
+
+  saveData();
+  closeDeliverModal();
+  renderOrdersPage();
+  renderDashboard();
+  renderDelivery();
+  renderHistory();
+  alert('Poora deliver ho gaya!');
+}
+
 function markDelivered(id) {
   for (var i = 0; i < orders.length; i++) {
-    if (orders[i].id == id) orders[i].status = 'Delivered';
+    if (orders[i].id == id) {
+      var o = orders[i];
+      for (var j = 0; j < o.items.length; j++) {
+        o.items[j].deliveredMaund = parseInt(o.items[j].maund) || 0;
+        o.items[j].deliveredKg = parseInt(o.items[j].kg) || 0;
+      }
+      o.status = 'Delivered';
+    }
   }
   saveData();
   renderOrdersPage();
@@ -622,7 +720,7 @@ function markDelivered(id) {
 function renderDelivery() {
   var pending = [];
   for (var i = 0; i < orders.length; i++) {
-    if (orders[i].status === 'Pending') pending.push(orders[i]);
+    if (orders[i].status === 'Pending' || orders[i].status === 'Partial') pending.push(orders[i]);
   }
   var list = document.getElementById('deliveryList');
   if (pending.length === 0) {
@@ -641,8 +739,7 @@ function renderDelivery() {
   var keys = Object.keys(grouped);
   for (var k = 0; k < keys.length; k++) {
     var shopId = keys[k];
-    var shopName = 'Unknown';
-    var shopMobile = '';
+    var shopName = 'Unknown', shopMobile = '';
     for (var i = 0; i < shopkeepers.length; i++) {
       if (shopkeepers[i].id == shopId) {
         shopName = shopkeepers[i].name;
@@ -651,22 +748,39 @@ function renderDelivery() {
     }
     var sOrders = grouped[shopId];
     var totalKg = 0;
-    for (var i = 0; i < sOrders.length; i++) totalKg += sOrders[i].totalKg || 0;
-
-    var ordersHtml = '';
     for (var i = 0; i < sOrders.length; i++) {
       var o = sOrders[i];
-      var itemsHtml = '';
-      var items = o.items || [];
-      for (var j = 0; j < items.length; j++) {
-        itemsHtml += '<div><span class="product-name">' + items[j].product + '</span> — <span class="qty">' + qtyText(items[j].maund, items[j].kg) + '</span></div>';
+      for (var j = 0; j < o.items.length; j++) {
+        var it = o.items[j];
+        var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+        var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+        totalKg += (remM * 40) + remK;
       }
-      ordersHtml += '<div class="shop-order-line">' +
-        '<div style="flex:1">' + itemsHtml +
-          '<small>' + formatDate(o.date) + (o.notes ? ' • ' + o.notes : '') + '</small>' +
-        '</div>' +
-        '<button class="btn small success" onclick="markDelivered(' + o.id + ')"><i class="fa fa-check"></i> Delivered</button>' +
-      '</div>';
+    }
+
+    var linesHtml = '';
+    for (var i = 0; i < sOrders.length; i++) {
+      var o = sOrders[i];
+      for (var j = 0; j < o.items.length; j++) {
+        var it = o.items[j];
+        var remM = (parseInt(it.maund) || 0) - (parseInt(it.deliveredMaund) || 0);
+        var remK = (parseInt(it.kg) || 0) - (parseInt(it.deliveredKg) || 0);
+        if (remM <= 0 && remK <= 0) continue;
+        var deliveredText = '';
+        if (it.deliveredMaund > 0 || it.deliveredKg > 0) {
+          deliveredText = '<div class="p-delivered">✓ ' + qtyText(it.deliveredMaund, it.deliveredKg) + ' deliver ho chuka</div>';
+        }
+        linesHtml += '<div class="product-line">' +
+          '<div class="product-line-info">' +
+            '<span class="p-name">📦 ' + it.product + '</span>' +
+            '<span class="p-qty">' + qtyText(remM, remK) + '</span>' +
+            deliveredText +
+          '</div>' +
+          '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')">' +
+            '<i class="fa fa-check"></i> Delivered' +
+          '</button>' +
+        '</div>';
+      }
     }
 
     html += '<div class="shop-group">' +
@@ -674,7 +788,7 @@ function renderDelivery() {
         '<div><h4><i class="fa fa-store"></i> ' + shopName + '</h4>' +
           '<p><i class="fa fa-phone"></i> ' + shopMobile + '</p></div>' +
         '<span class="shop-group-total">' + totalKgText(totalKg) + '</span>' +
-      '</div>' + ordersHtml +
+      '</div>' + linesHtml +
     '</div>';
   }
   list.innerHTML = html;
@@ -716,9 +830,8 @@ function renderHistory() {
       if (shopkeepers[j].id == o.shopId) shopName = shopkeepers[j].name;
     }
     var itemsHtml = '';
-    var items = o.items || [];
-    for (var j = 0; j < items.length; j++) {
-      itemsHtml += '<p>• ' + items[j].product + ' — <b>' + qtyText(items[j].maund, items[j].kg) + '</b></p>';
+    for (var j = 0; j < o.items.length; j++) {
+      itemsHtml += '<p>• ' + o.items[j].product + ' — <b>' + qtyText(o.items[j].maund, o.items[j].kg) + '</b></p>';
     }
     html += '<div class="item delivered-item">' +
       '<div class="item-info">' +
@@ -747,10 +860,8 @@ function viewShopHistory(shopId) {
     if (orders[i].shopId == shopId) sOrders.push(orders[i]);
   }
   sOrders.reverse();
-
   document.getElementById('modalTitle').textContent = shopName + ' - Orders';
   var body = document.getElementById('modalBody');
-
   if (sOrders.length === 0) {
     body.innerHTML = '<div class="empty">Abhi koi order nahi.</div>';
   } else {
@@ -758,11 +869,10 @@ function viewShopHistory(shopId) {
     for (var i = 0; i < sOrders.length; i++) {
       var o = sOrders[i];
       var itemsHtml = '';
-      var items = o.items || [];
-      for (var j = 0; j < items.length; j++) {
-        itemsHtml += '<p><b>' + items[j].product + '</b> — ' + qtyText(items[j].maund, items[j].kg) + '</p>';
+      for (var j = 0; j < o.items.length; j++) {
+        itemsHtml += '<p><b>' + o.items[j].product + '</b> — ' + qtyText(o.items[j].maund, o.items[j].kg) + '</p>';
       }
-      html += '<div class="item ' + (o.status === 'Pending' ? 'pending-item' : 'delivered-item') + '" style="margin-bottom:10px;">' +
+      html += '<div class="item ' + (o.status === 'Delivered' ? 'delivered-item' : 'pending-item') + '" style="margin-bottom:10px;">' +
         '<div class="item-info">' + itemsHtml +
           '<p><small>' + formatDate(o.date) + '</small></p>' +
           '<span class="badge ' + o.status.toLowerCase() + '">' + o.status + '</span>' +
