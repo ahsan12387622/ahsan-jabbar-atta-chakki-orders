@@ -13,10 +13,7 @@ function saveData() {
 
 function todayStr() {
   var d = new Date();
-  var y = d.getFullYear();
-  var m = String(d.getMonth() + 1).padStart(2, '0');
-  var day = String(d.getDate()).padStart(2, '0');
-  return y + '-' + m + '-' + day;
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 function formatDate(s) {
@@ -178,6 +175,7 @@ function deleteProduct(i) {
   prepareOrderForm();
 }
 
+// DASHBOARD - Har product ek hi line mein
 function renderDashboard() {
   var today = todayStr();
   var dateLabel = document.getElementById('todayDateLabel');
@@ -202,15 +200,24 @@ function renderDashboard() {
     return;
   }
 
-  var rows = '';
+  var byProduct = {};
   for (var i = 0; i < todayPending.length; i++) {
     var items = todayPending[i].items || [];
     for (var j = 0; j < items.length; j++) {
-      rows += '<div class="shop-order-line">' +
-        '<span class="product-name">📦 ' + items[j].product + '</span>' +
-        '<span class="qty">' + qtyText(items[j].maund, items[j].kg) + '</span>' +
-      '</div>';
+      var p = items[j].product;
+      if (!byProduct[p]) byProduct[p] = [];
+      byProduct[p].push(qtyText(items[j].maund, items[j].kg));
     }
+  }
+
+  var rows = '';
+  var keys = Object.keys(byProduct);
+  for (var k = 0; k < keys.length; k++) {
+    var qtyList = byProduct[keys[k]].join(', ');
+    rows += '<div class="shop-order-line">' +
+      '<span class="product-name">📦 ' + keys[k] + '</span>' +
+      '<span class="qty qty-scroll">' + qtyList + '</span>' +
+    '</div>';
   }
   list.innerHTML = rows;
 }
@@ -478,6 +485,7 @@ function saveMultiOrder() {
   document.getElementById('orderNotes').value = '';
 }
 
+// ORDERS PAGE - Har product ek hi line mein
 function renderOrdersPage() {
   var dateVal = document.getElementById('ordersDate').value || todayStr();
   var statusFilter = document.getElementById('ordersStatus').value;
@@ -535,15 +543,23 @@ function renderOrdersPage() {
       if (sOrders[i].status === 'Pending') hasPending = true;
     }
 
-    var rowsHtml = '';
+    var byProduct = {};
     for (var i = 0; i < sOrders.length; i++) {
       var items = sOrders[i].items || [];
       for (var j = 0; j < items.length; j++) {
-        rowsHtml += '<div class="shop-order-line">' +
-          '<span class="product-name">📦 ' + items[j].product + '</span>' +
-          '<span class="qty">' + qtyText(items[j].maund, items[j].kg) + '</span>' +
-        '</div>';
+        var p = items[j].product;
+        if (!byProduct[p]) byProduct[p] = [];
+        byProduct[p].push(qtyText(items[j].maund, items[j].kg));
       }
+    }
+
+    var rowsHtml = '';
+    var pKeys = Object.keys(byProduct);
+    for (var kk = 0; kk < pKeys.length; kk++) {
+      rowsHtml += '<div class="shop-order-line">' +
+        '<span class="product-name">📦 ' + pKeys[kk] + '</span>' +
+        '<span class="qty qty-scroll">' + byProduct[pKeys[kk]].join(', ') + '</span>' +
+      '</div>';
     }
 
     var pendingBtns = '';
