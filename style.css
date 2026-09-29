@@ -557,4 +557,15 @@ body.mobile-mode .big-buttons { grid-template-columns: 1fr; }
   .menu-btn { display: flex; align-items: center; justify-content: center; }
   .form-row { grid-template-columns: 1fr; }
   .qty-row { grid-template-columns: 1fr; }
-  h1 { font-size: 22
+  h1 { font-size: 22px; }
+  .card h3 { font-size: 20px; }
+  .card-icon { width: 40px; height: 40px; font-size: 17px; }
+  .item { flex-direction: column; }
+  .item-actions { width: 100%; }
+  .item-actions .btn { flex: 1; }
+  .load-summary { flex-direction: column; text-align: center; }
+  .mode-switch { flex-direction: column; }
+  .big-buttons { grid-template-columns: 1fr; }
+  .big-btn i { font-size: 28px; }
+  .big-btn span { font-size: 17px; }
+}
