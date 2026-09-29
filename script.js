@@ -1,28 +1,108 @@
-// ========== DATA ==========
-var shopkeepers = JSON.parse(localStorage.getItem('shopkeepers')) || [];
-var orders = JSON.parse(localStorage.getItem('orders')) || [];
-var products = JSON.parse(localStorage.getItem('products')) || ['Aata', 'Besan', 'Chawal ka Atta'];
-var settings = JSON.parse(localStorage.getItem('settings')) || { bizName: 'Atta Chakki', mode: 'auto' };
-var users = JSON.parse(localStorage.getItem('users')) || [];
-var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-var currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+// ================== FIREBASE ==================
+var firebaseConfig = {
+  apiKey: "AIzaSyDHFXOap1egB57a4Yh4y60tDbLMAzwyaz8",
+  authDomain: "atta-chki.firebaseapp.com",
+  projectId: "atta-chki",
+  storageBucket: "atta-chki.firebasestorage.app",
+  messagingSenderId: "906808155320",
+  appId: "1:906808155320:web:5d6cc5e206b099ca27284d"
+};
+
+var db = null;
+var firebaseReady = false;
+var firebaseLoaded = false;
+
+function initFirebase(callback) {
+  if (firebaseLoaded) { if (callback) callback(); return; }
+  firebaseLoaded = true;
+
+  var script1 = document.createElement('script');
+  script1.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js';
+  script1.onload = function() {
+    var script2 = document.createElement('script');
+    script2.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js';
+    script2.onload = function() {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        firebaseReady = true;
+      } catch (e) { console.log(e); }
+      if (callback) callback();
+    };
+    document.head.appendChild(script2);
+  };
+  script1.onerror = function() { if (callback) callback(); };
+  document.head.appendChild(script1);
+}
+
+// ================== DATA ==================
+var shopkeepers = [];
+var orders = [];
+var products = ['Aata', 'Besan', 'Chawal ka Atta'];
+var settings = { bizName: 'Atta Chakki', mode: 'auto' };
+var users = [];
+var isLoggedIn = false;
+var currentUser = null;
 
 var currentDeliverOrderId = null;
 var currentDeliverProduct = null;
 
-function saveData() {
-  localStorage.setItem('shopkeepers', JSON.stringify(shopkeepers));
-  localStorage.setItem('orders', JSON.stringify(orders));
-  localStorage.setItem('products', JSON.stringify(products));
-  localStorage.setItem('settings', JSON.stringify(settings));
-  localStorage.setItem('users', JSON.stringify(users));
+// ================== FIREBASE SYNC ==================
+function loadAllData(callback) {
+  if (!firebaseReady) { if (callback) callback(); return; }
+
+  var pending = 5;
+  function done() { pending--; if (pending === 0 && callback) callback(); }
+
+  db.collection('shopkeepers').get().then(function(snap) {
+    shopkeepers = [];
+    snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; shopkeepers.push(d); });
+    done();
+  }).catch(function() { done(); });
+
+  db.collection('orders').get().then(function(snap) {
+    orders = [];
+    snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; orders.push(d); });
+    done();
+  }).catch(function() { done(); });
+
+  db.collection('settings').doc('products').get().then(function(doc) {
+    if (doc.exists) products = doc.data().list || products;
+    done();
+  }).catch(function() { done(); });
+
+  db.collection('settings').doc('business').get().then(function(doc) {
+    if (doc.exists) {
+      var d = doc.data();
+      if (d.bizName) settings.bizName = d.bizName;
+      if (d.mode) settings.mode = d.mode;
+    }
+    done();
+  }).catch(function() { done(); });
+
+  db.collection('users').get().then(function(snap) {
+    users = [];
+    snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; users.push(d); });
+    done();
+  }).catch(function() { done(); });
 }
 
-// ========== PERMISSIONS ==========
-function isAdmin() {
-  return currentUser && currentUser.isAdmin === true;
+function saveToFirebase(collection, id, data) {
+  if (!firebaseReady) return;
+  db.collection(collection).doc(String(id)).set(data).catch(function(e) { console.log(e); });
+}
+function deleteFromFirebase(collection, id) {
+  if (!firebaseReady) return;
+  db.collection(collection).doc(String(id)).delete().catch(function(e) { console.log(e); });
+}
+function saveSettingsFirebase() {
+  if (!firebaseReady) return;
+  saveToFirebase('settings', 'products', { list: products });
+  saveToFirebase('settings', 'business', { bizName: settings.bizName, mode: settings.mode });
 }
 
+// ================== PERMISSIONS ==================
+function isAdmin() { return currentUser && currentUser.isAdmin === true; }
 function can(permission) {
   if (!currentUser) return false;
   if (currentUser.isAdmin) return true;
@@ -30,26 +110,28 @@ function can(permission) {
   return currentUser.perms[permission] === true;
 }
 
-// ========== LOGIN ==========
+// ================== LOGIN ==================
 function doLogin() {
   var user = document.getElementById('loginUser').value.trim();
   var pass = document.getElementById('loginPass').value;
   var err = document.getElementById('loginError');
   err.textContent = '';
-
   if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
+  if (!firebaseReady) { err.textContent = 'Internet issue. Dobara try karein.'; return; }
+  err.textContent = 'Check...';
 
-  var found = null;
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].user === user && users[i].pass === pass) found = users[i];
-  }
-  if (!found) { err.textContent = 'Ghalat username ya password'; return; }
-
-  currentUser = found;
-  isLoggedIn = true;
-  localStorage.setItem('isLoggedIn', 'true');
-  localStorage.setItem('currentUser', JSON.stringify(found));
-  showApp();
+  db.collection('users').where('user', '==', user).get().then(function(snap) {
+    if (snap.empty) { err.textContent = 'Ghalat username ya password'; return; }
+    var found = null;
+    snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; if (d.pass === pass) found = d; });
+    if (!found) { err.textContent = 'Ghalat username ya password'; return; }
+    err.textContent = '';
+    currentUser = found;
+    isLoggedIn = true;
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('currentUser', JSON.stringify(found));
+    showApp();
+  }).catch(function() { err.textContent = 'Error. Dobara try karein.'; });
 }
 
 function doSignup() {
@@ -58,35 +140,26 @@ function doSignup() {
   var pass2 = document.getElementById('signupPass2').value;
   var err = document.getElementById('loginError');
   err.textContent = '';
-
   if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
   if (pass.length < 4) { err.textContent = 'Password kam az kam 4 characters'; return; }
   if (pass !== pass2) { err.textContent = 'Password match nahi kar rahe'; return; }
+  if (!firebaseReady) { err.textContent = 'Internet issue.'; return; }
 
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].user === user) { err.textContent = 'Ye username pehle se mojood hai'; return; }
-  }
-
-  var adminUser = {
-    id: Date.now(),
-    user: user,
-    pass: pass,
-    display: user,
-    isAdmin: true,
-    perms: {
-      newOrder: true,
-      deliver: true,
-      shopkeepers: true,
-      history: true,
-      settings: true
-    }
-  };
-  users.push(adminUser);
-  saveData();
-  alert('Admin account ban gaya!\nAb login karein.');
-  hideSignup();
-  document.getElementById('loginUser').value = user;
-  document.getElementById('loginPass').value = '';
+  db.collection('users').where('user', '==', user).get().then(function(snap) {
+    if (!snap.empty) { err.textContent = 'Ye username pehle se mojood hai'; return; }
+    var adminUser = {
+      user: user, pass: pass, display: user, isAdmin: true,
+      perms: { newOrder: true, deliver: true, shopkeepers: true, history: true, settings: true },
+      createdAt: new Date().toISOString()
+    };
+    db.collection('users').add(adminUser).then(function(ref) {
+      alert('Admin account ban gaya!\nAb login karein.');
+      hideSignup();
+      document.getElementById('loginUser').value = user;
+      document.getElementById('loginPass').value = '';
+      document.getElementById('loginPass').focus();
+    }).catch(function() { err.textContent = 'Account nahi bana. Dobara try.'; });
+  }).catch(function() { err.textContent = 'Error.'; });
 }
 
 function showSignup() {
@@ -94,7 +167,6 @@ function showSignup() {
   document.getElementById('signupLinkBox').style.display = 'none';
   document.getElementById('loginError').textContent = '';
 }
-
 function hideSignup() {
   document.getElementById('signupSection').style.display = 'none';
   document.getElementById('signupLinkBox').style.display = 'block';
@@ -102,11 +174,9 @@ function hideSignup() {
   document.getElementById('signupPass').value = '';
   document.getElementById('signupPass2').value = '';
 }
-
 function doLogout() {
   if (!confirm('Logout karna hai?')) return;
-  isLoggedIn = false;
-  currentUser = null;
+  isLoggedIn = false; currentUser = null;
   localStorage.setItem('isLoggedIn', 'false');
   localStorage.removeItem('currentUser');
   document.getElementById('appWrapper').style.display = 'none';
@@ -115,26 +185,18 @@ function doLogout() {
   document.getElementById('loginPass').value = '';
   hideSignup();
 }
-
 function changePassword() {
   var oldP = document.getElementById('oldPass').value;
   var newP = document.getElementById('newPass').value;
   if (!oldP || !newP) { alert('Dono password daalein'); return; }
-  if (newP.length < 4) { alert('Naya password kam az kam 4 characters'); return; }
-
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === currentUser.id) {
-      if (users[i].pass !== oldP) { alert('Purana password ghalat hai'); return; }
-      users[i].pass = newP;
-      currentUser = users[i];
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      saveData();
-      document.getElementById('oldPass').value = '';
-      document.getElementById('newPass').value = '';
-      alert('Password change ho gaya!');
-      return;
-    }
-  }
+  if (newP.length < 4) { alert('Password kam az kam 4 characters'); return; }
+  if (currentUser.pass !== oldP) { alert('Purana password ghalat hai'); return; }
+  currentUser.pass = newP;
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  if (firebaseReady) db.collection('users').doc(String(currentUser.id)).update({ pass: newP });
+  document.getElementById('oldPass').value = '';
+  document.getElementById('newPass').value = '';
+  alert('Password change ho gaya!');
 }
 
 function showApp() {
@@ -150,41 +212,20 @@ function showApp() {
   if (isAdmin()) renderUsers();
 }
 
-// ========== SIDEBAR (Permissions ke hisaab se) ==========
+// ================== SIDEBAR ==================
 function renderSidebarNav() {
   var nav = document.getElementById('sidebarNav');
   var html = '';
-
   html += '<button class="nav-btn active" onclick="showPage(\'dashboard\', this)"><i class="fa fa-home"></i> <span>Dashboard</span></button>';
-
-  if (can('newOrder')) {
-    html += '<button class="nav-btn" onclick="showPage(\'neworder\', this)"><i class="fa fa-plus-circle"></i> <span>Naya Order</span></button>';
-  }
+  if (can('newOrder')) html += '<button class="nav-btn" onclick="showPage(\'neworder\', this)"><i class="fa fa-plus-circle"></i> <span>Naya Order</span></button>';
   html += '<button class="nav-btn" onclick="showPage(\'orders\', this)"><i class="fa fa-truck"></i> <span>Orders / Loading</span></button>';
-
-  if (can('shopkeepers')) {
-    html += '<button class="nav-btn" onclick="showPage(\'shopkeepers\', this)"><i class="fa fa-users"></i> <span>Shopkeepers</span></button>';
-  }
-
+  if (can('shopkeepers')) html += '<button class="nav-btn" onclick="showPage(\'shopkeepers\', this)"><i class="fa fa-users"></i> <span>Shopkeepers</span></button>';
   html += '<button class="nav-btn" onclick="showPage(\'delivery\', this)"><i class="fa fa-check-circle"></i> <span>Delivery</span></button>';
-
-  if (can('history')) {
-    html += '<button class="nav-btn" onclick="showPage(\'history\', this)"><i class="fa fa-clock"></i> <span>History</span></button>';
-  }
-
-  if (isAdmin()) {
-    html += '<button class="nav-btn" onclick="showPage(\'users\', this)"><i class="fa fa-user-shield"></i> <span>Users</span></button>';
-  }
-
-  if (can('settings')) {
-    html += '<button class="nav-btn" onclick="showPage(\'settings\', this)"><i class="fa fa-gear"></i> <span>Settings</span></button>';
-  }
-
+  if (can('history')) html += '<button class="nav-btn" onclick="showPage(\'history\', this)"><i class="fa fa-clock"></i> <span>History</span></button>';
+  if (isAdmin()) html += '<button class="nav-btn" onclick="showPage(\'users\', this)"><i class="fa fa-user-shield"></i> <span>Users</span></button>';
+  if (can('settings')) html += '<button class="nav-btn" onclick="showPage(\'settings\', this)"><i class="fa fa-gear"></i> <span>Settings</span></button>';
   html += '<button class="nav-btn" onclick="doLogout()"><i class="fa fa-sign-out-alt"></i> <span>Logout</span></button>';
-
   nav.innerHTML = html;
-
-  // User info
   if (currentUser) {
     document.getElementById('userNameLabel').textContent = currentUser.display || currentUser.user;
     var roleEl = document.getElementById('userRoleLabel');
@@ -193,7 +234,7 @@ function renderSidebarNav() {
   }
 }
 
-// ========== HELPERS ==========
+// ================== HELPERS ==================
 function todayStr() {
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -268,14 +309,13 @@ function checkOrderDelivered(order) {
   return true;
 }
 
-// ========== NAVIGATION ==========
+// ================== NAVIGATION ==================
 function showPage(pageId, btn) {
-  // Permission check
-  if (pageId === 'neworder' && !can('newOrder')) { alert('Aap ko ye permission nahi hai'); return; }
-  if (pageId === 'shopkeepers' && !can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
-  if (pageId === 'history' && !can('history')) { alert('Aap ko ye permission nahi hai'); return; }
-  if (pageId === 'settings' && !can('settings')) { alert('Aap ko ye permission nahi hai'); return; }
-  if (pageId === 'users' && !isAdmin()) { alert('Sirf Admin ye page dekh sakta hai'); return; }
+  if (pageId === 'neworder' && !can('newOrder')) { alert('Permission nahi hai'); return; }
+  if (pageId === 'shopkeepers' && !can('shopkeepers')) { alert('Permission nahi hai'); return; }
+  if (pageId === 'history' && !can('history')) { alert('Permission nahi hai'); return; }
+  if (pageId === 'settings' && !can('settings')) { alert('Permission nahi hai'); return; }
+  if (pageId === 'users' && !isAdmin()) { alert('Sirf Admin'); return; }
 
   var pages = document.querySelectorAll('.page');
   for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
@@ -301,18 +341,16 @@ function showPage(pageId, btn) {
   if (pageId === 'history') renderHistory();
   if (pageId === 'settings') renderSettings();
   if (pageId === 'users') renderUsers();
-
   window.scrollTo(0, 0);
 }
 
-// ========== SETTINGS ==========
+// ================== SETTINGS ==================
 function applySettings() {
   var t1 = document.getElementById('topbarTitle');
   var t2 = document.getElementById('sidebarTitle');
   if (t1) t1.textContent = settings.bizName;
   if (t2) t2.textContent = settings.bizName;
   document.title = settings.bizName;
-
   var body = document.body;
   body.classList.remove('mobile-mode', 'pc-mode');
   if (settings.mode === 'mobile') body.classList.add('mobile-mode');
@@ -324,19 +362,23 @@ function applySettings() {
 }
 function setMode(m) {
   settings.mode = m;
-  saveData(); applySettings(); renderSettings();
+  saveSettingsFirebase();
+  applySettings();
+  renderSettings();
   alert('Mode: ' + (m === 'mobile' ? 'Mobile' : 'PC'));
 }
 function toggleMode() {
   settings.mode = settings.mode === 'mobile' ? 'pc' : 'mobile';
-  saveData(); applySettings();
+  saveSettingsFirebase();
+  applySettings();
 }
 function saveBizName() {
   var el = document.getElementById('setBizName');
   var name = el.value.trim();
   if (!name) { alert('Naam likhein'); return; }
   settings.bizName = name;
-  saveData(); applySettings();
+  saveSettingsFirebase();
+  applySettings();
   alert('Naam save ho gaya!');
 }
 function renderSettings() {
@@ -364,34 +406,33 @@ function addProduct() {
   if (!name) { alert('Naam likhein'); return; }
   if (products.indexOf(name) !== -1) { alert('Already mojood hai'); return; }
   products.push(name);
-  saveData(); input.value = '';
-  renderProductsList(); prepareOrderForm();
+  saveSettingsFirebase();
+  input.value = '';
+  renderProductsList();
+  prepareOrderForm();
 }
 function deleteProduct(i) {
   if (!confirm('Delete: ' + products[i] + '?')) return;
   products.splice(i, 1);
-  saveData(); renderProductsList(); prepareOrderForm();
+  saveSettingsFirebase();
+  renderProductsList();
+  prepareOrderForm();
 }
 
-// ========== USERS MANAGEMENT ==========
+// ================== USERS ==================
 function saveUser() {
-  if (!isAdmin()) { alert('Sirf Admin user bana sakta hai'); return; }
+  if (!isAdmin()) { alert('Sirf Admin'); return; }
   var id = document.getElementById('userId').value;
   var user = document.getElementById('newUserName').value.trim();
   var pass = document.getElementById('newUserPass').value;
   var display = document.getElementById('newUserDisplay').value.trim();
-
   if (!user || !pass) { alert('Username aur password zaroori!'); return; }
   if (pass.length < 4) { alert('Password kam az kam 4 characters'); return; }
-
-  // Check duplicate
   for (var i = 0; i < users.length; i++) {
     if (users[i].user === user && users[i].id != id) {
-      alert('Ye username pehle se mojood hai');
-      return;
+      alert('Ye username pehle se mojood hai'); return;
     }
   }
-
   var perms = {
     newOrder: document.getElementById('permNewOrder').checked,
     deliver: document.getElementById('permDeliver').checked,
@@ -399,32 +440,31 @@ function saveUser() {
     history: document.getElementById('permHistory').checked,
     settings: document.getElementById('permSettings').checked
   };
-
   if (id) {
     for (var i = 0; i < users.length; i++) {
       if (users[i].id == id) {
-        users[i].user = user;
-        users[i].pass = pass;
-        users[i].display = display || user;
-        users[i].perms = perms;
+        users[i].user = user; users[i].pass = pass;
+        users[i].display = display || user; users[i].perms = perms;
+        saveToFirebase('users', users[i].id, users[i]);
       }
     }
-  } else {
-    users.push({
-      id: Date.now(),
-      user: user,
-      pass: pass,
-      display: display || user,
-      isAdmin: false,
-      perms: perms
-    });
+    alert('User save!'); resetUserForm(); renderUsers(); return;
   }
-  saveData();
-  resetUserForm();
-  renderUsers();
-  alert('User save ho gaya!');
+  var newUser = {
+    user: user, pass: pass, display: display || user,
+    isAdmin: false, perms: perms, createdAt: new Date().toISOString()
+  };
+  if (firebaseReady) {
+    db.collection('users').add(newUser).then(function(ref) {
+      newUser.id = ref.id;
+      users.push(newUser);
+      alert('User save ho gaya!\nAb woh kisi bhi device pe login kar sakta hai.');
+      resetUserForm(); renderUsers();
+    }).catch(function() { alert('Save nahi hua. Dobara try.'); });
+  } else {
+    alert('Internet issue.');
+  }
 }
-
 function resetUserForm() {
   document.getElementById('userId').value = '';
   document.getElementById('newUserName').value = '';
@@ -437,7 +477,6 @@ function resetUserForm() {
   document.getElementById('permSettings').checked = false;
   document.getElementById('userFormTitle').textContent = 'Naya User Banayein';
 }
-
 function editUser(id) {
   for (var i = 0; i < users.length; i++) {
     if (users[i].id == id) {
@@ -457,25 +496,20 @@ function editUser(id) {
     }
   }
 }
-
 function deleteUser(id) {
   if (!isAdmin()) return;
   for (var i = 0; i < users.length; i++) {
-    if (users[i].id == id && users[i].isAdmin) {
-      alert('Admin ko delete nahi kar sakte');
-      return;
-    }
+    if (users[i].id == id && users[i].isAdmin) { alert('Admin delete nahi'); return; }
   }
-  if (!confirm('Pakka user delete karein?')) return;
+  if (!confirm('Pakka delete?')) return;
   var newList = [];
   for (var i = 0; i < users.length; i++) {
     if (users[i].id != id) newList.push(users[i]);
+    else deleteFromFirebase('users', users[i].id);
   }
   users = newList;
-  saveData();
   renderUsers();
 }
-
 function renderUsers() {
   if (!isAdmin()) return;
   var list = document.getElementById('usersList');
@@ -488,7 +522,6 @@ function renderUsers() {
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
     var badge = u.isAdmin ? '<span class="badge admin-badge">ADMIN</span>' : '<span class="badge staff-badge">STAFF</span>';
-
     var chips = '';
     var permsList = [
       { k: 'newOrder', label: 'Naya Order' },
@@ -501,18 +534,15 @@ function renderUsers() {
       var on = u.isAdmin || (u.perms && u.perms[permsList[j].k] === true);
       chips += '<span class="perm-chip ' + (on ? '' : 'off') + '">' + permsList[j].label + '</span>';
     }
-
     var actions = '';
     if (!u.isAdmin) {
-      actions = '<button class="btn small" onclick="editUser(' + u.id + ')"><i class="fa fa-edit"></i> Edit</button>' +
-                '<button class="btn small danger" onclick="deleteUser(' + u.id + ')"><i class="fa fa-trash"></i></button>';
+      actions = '<button class="btn small" onclick="editUser(\'' + u.id + '\')"><i class="fa fa-edit"></i> Edit</button>' +
+                '<button class="btn small danger" onclick="deleteUser(\'' + u.id + '\')"><i class="fa fa-trash"></i></button>';
     }
-
     html += '<div class="item user-item">' +
       '<div class="item-info">' +
         '<h4><i class="fa fa-user-circle"></i> ' + (u.display || u.user) + '</h4>' +
-        '<p><b>@' + u.user + '</b></p>' +
-        badge +
+        '<p><b>@' + u.user + '</b></p>' + badge +
         '<div class="perm-chips">' + chips + '</div>' +
       '</div>' +
       '<div class="item-actions">' + actions + '</div>' +
@@ -521,12 +551,11 @@ function renderUsers() {
   list.innerHTML = html;
 }
 
-// ========== DASHBOARD ==========
+// ================== DASHBOARD ==================
 function renderDashboard() {
   var today = todayStr();
   var dateLabel = document.getElementById('todayDateLabel');
   if (dateLabel) dateLabel.textContent = formatDateLong(today);
-
   document.getElementById('totalShopkeepers').textContent = shopkeepers.length;
   document.getElementById('todayOrders').textContent = orders.filter(function(o) { return o.date === today; }).length;
   document.getElementById('pendingOrders').textContent = orders.filter(function(o) { return o.status === 'Pending' || o.status === 'Partial'; }).length;
@@ -544,7 +573,6 @@ function renderDashboard() {
     }
   }
   document.getElementById('todayLoadBadge').textContent = totalKgText(totalKg);
-
   var list = document.getElementById('todayLoadList');
   if (todayPending.length === 0) {
     list.innerHTML = '<div class="empty"><i class="fa fa-check-circle"></i>Aaj koi pending order nahi.</div>';
@@ -574,27 +602,39 @@ function renderDashboard() {
   list.innerHTML = rows || '<div class="empty">Sab deliver ho gaya!</div>';
 }
 
-// ========== SHOPKEEPERS ==========
+// ================== SHOPKEEPERS ==================
 function saveShopkeeper() {
-  if (!can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (!can('shopkeepers')) { alert('Permission nahi hai'); return; }
   var id = document.getElementById('shopId').value;
   var name = document.getElementById('shopName').value.trim();
   var mobile = document.getElementById('shopMobile').value.trim();
   var address = document.getElementById('shopAddress').value.trim();
   if (!name || !mobile) { alert('Naam aur mobile zaroori!'); return; }
+
   if (id) {
     for (var i = 0; i < shopkeepers.length; i++) {
       if (shopkeepers[i].id == id) {
         shopkeepers[i].name = name;
         shopkeepers[i].mobile = mobile;
         shopkeepers[i].address = address;
+        saveToFirebase('shopkeepers', shopkeepers[i].id, shopkeepers[i]);
       }
     }
-  } else {
-    shopkeepers.push({ id: Date.now(), name: name, mobile: mobile, address: address });
+    resetShopForm(); renderShopkeepers(); renderDashboard();
+    alert('Shopkeeper save!'); return;
   }
-  saveData(); resetShopForm(); renderShopkeepers(); renderDashboard();
-  alert('Shopkeeper save!');
+
+  var newShop = { name: name, mobile: mobile, address: address, createdAt: new Date().toISOString() };
+  if (firebaseReady) {
+    db.collection('shopkeepers').add(newShop).then(function(ref) {
+      newShop.id = ref.id;
+      shopkeepers.push(newShop);
+      resetShopForm(); renderShopkeepers(); renderDashboard();
+      alert('Shopkeeper save!');
+    }).catch(function() { alert('Save nahi hua.'); });
+  } else {
+    alert('Internet issue.');
+  }
 }
 function resetShopForm() {
   document.getElementById('shopId').value = '';
@@ -604,7 +644,7 @@ function resetShopForm() {
   document.getElementById('shopFormTitle').textContent = 'Naya Shopkeeper Add Karein';
 }
 function editShopkeeper(id) {
-  if (!can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (!can('shopkeepers')) { alert('Permission nahi hai'); return; }
   for (var i = 0; i < shopkeepers.length; i++) {
     if (shopkeepers[i].id == id) {
       var s = shopkeepers[i];
@@ -618,14 +658,15 @@ function editShopkeeper(id) {
   window.scrollTo(0, 0);
 }
 function deleteShopkeeper(id) {
-  if (!can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (!can('shopkeepers')) { alert('Permission nahi hai'); return; }
   if (!confirm('Pakka delete?')) return;
   var newList = [];
   for (var i = 0; i < shopkeepers.length; i++) {
     if (shopkeepers[i].id != id) newList.push(shopkeepers[i]);
+    else deleteFromFirebase('shopkeepers', shopkeepers[i].id);
   }
   shopkeepers = newList;
-  saveData(); renderShopkeepers(); renderDashboard();
+  renderShopkeepers(); renderDashboard();
 }
 function renderShopkeepers() {
   var list = document.getElementById('shopkeepersList');
@@ -645,8 +686,8 @@ function renderShopkeepers() {
     }
     var editBtns = '';
     if (can('shopkeepers')) {
-      editBtns = '<button class="btn small" onclick="editShopkeeper(' + s.id + ')"><i class="fa fa-edit"></i> Edit</button>' +
-                 '<button class="btn small danger" onclick="deleteShopkeeper(' + s.id + ')"><i class="fa fa-trash"></i></button>';
+      editBtns = '<button class="btn small" onclick="editShopkeeper(\'' + s.id + '\')"><i class="fa fa-edit"></i> Edit</button>' +
+                 '<button class="btn small danger" onclick="deleteShopkeeper(\'' + s.id + '\')"><i class="fa fa-trash"></i></button>';
     }
     html += '<div class="item">' +
       '<div class="item-info">' +
@@ -656,7 +697,7 @@ function renderShopkeepers() {
         '<p><small>' + total + ' total • ' + pending + ' pending</small></p>' +
       '</div>' +
       '<div class="item-actions">' +
-        '<button class="btn small" onclick="viewShopHistory(' + s.id + ')"><i class="fa fa-history"></i> History</button>' +
+        '<button class="btn small" onclick="viewShopHistory(\'' + s.id + '\')"><i class="fa fa-history"></i> History</button>' +
         editBtns +
       '</div>' +
     '</div>';
@@ -668,7 +709,7 @@ function renderShopkeepers() {
   }
 }
 
-// ========== NEW ORDER ==========
+// ================== NEW ORDER ==================
 function prepareOrderForm() {
   var select = document.getElementById('orderShop');
   if (!select) return;
@@ -745,7 +786,7 @@ function updateSummary() {
   summary.innerHTML = html;
 }
 function saveMultiOrder() {
-  if (!can('newOrder')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (!can('newOrder')) { alert('Permission nahi hai'); return; }
   var shopId = document.getElementById('orderShop').value;
   var date = document.getElementById('orderDate').value;
   var notes = document.getElementById('orderNotes').value.trim();
@@ -765,27 +806,33 @@ function saveMultiOrder() {
     }
   }
   if (items.length === 0) { alert('Kam az kam ek product ki quantity daalein!'); return; }
-  orders.push({
-    id: Date.now(), shopId: parseInt(shopId), items: items, totalKg: totalKg,
-    date: date, notes: notes, status: 'Pending',
+  var newOrder = {
+    shopId: shopId, items: items, totalKg: totalKg, date: date,
+    notes: notes, status: 'Pending',
     createdBy: currentUser ? currentUser.user : 'unknown',
     createdAt: new Date().toISOString()
-  });
-  saveData();
-  var shopName = '';
-  for (var i = 0; i < shopkeepers.length; i++) {
-    if (shopkeepers[i].id == shopId) shopName = shopkeepers[i].name;
+  };
+  if (firebaseReady) {
+    db.collection('orders').add(newOrder).then(function(ref) {
+      newOrder.id = ref.id;
+      orders.push(newOrder);
+      var shopName = '';
+      for (var i = 0; i < shopkeepers.length; i++) {
+        if (shopkeepers[i].id == shopId) shopName = shopkeepers[i].name;
+      }
+      alert('Order save!\n' + shopName + '\n' + items.length + ' products');
+      prepareOrderForm();
+      document.getElementById('orderNotes').value = '';
+    }).catch(function() { alert('Save nahi hua.'); });
+  } else {
+    alert('Internet issue.');
   }
-  alert('Order save!\n' + shopName + '\n' + items.length + ' products');
-  prepareOrderForm();
-  document.getElementById('orderNotes').value = '';
 }
 
-// ========== ORDERS PAGE ==========
+// ================== ORDERS PAGE ==================
 function renderOrdersPage() {
   var dateVal = document.getElementById('ordersDate').value || todayStr();
   var statusFilter = document.getElementById('ordersStatus').value;
-
   var filtered = [];
   for (var i = 0; i < orders.length; i++) {
     var o = orders[i];
@@ -794,16 +841,13 @@ function renderOrdersPage() {
     if (statusFilter === 'Delivered' && o.status !== 'Delivered') continue;
     filtered.push(o);
   }
-
   var list = document.getElementById('ordersList');
   var summary = document.getElementById('ordersSummary');
-
   if (filtered.length === 0) {
     summary.innerHTML = '<div><p>' + formatDate(dateVal) + ' ka load</p><div class="big-num">0 kg</div></div>';
     list.innerHTML = '<div class="empty"><i class="fa fa-truck"></i>Is din koi order nahi.</div>';
     return;
   }
-
   var totalKg = 0;
   for (var i = 0; i < filtered.length; i++) {
     var o = filtered[i];
@@ -815,14 +859,12 @@ function renderOrdersPage() {
     }
   }
   summary.innerHTML = '<div><p>' + formatDate(dateVal) + ' ka baqi load</p><div class="big-num">' + totalKgText(totalKg) + '</div></div>';
-
   var grouped = {};
   for (var i = 0; i < filtered.length; i++) {
     var sid = filtered[i].shopId;
     if (!grouped[sid]) grouped[sid] = [];
     grouped[sid].push(filtered[i]);
   }
-
   var html = '';
   var keys = Object.keys(grouped);
   for (var k = 0; k < keys.length; k++) {
@@ -846,7 +888,6 @@ function renderOrdersPage() {
         shopKg += (remM * 40) + remK;
       }
     }
-
     var linesHtml = '';
     for (var i = 0; i < sOrders.length; i++) {
       var o = sOrders[i];
@@ -860,7 +901,7 @@ function renderOrdersPage() {
           deliveredText = '<div class="p-delivered">✓ ' + qtyText(it.deliveredMaund, it.deliveredKg) + ' deliver ho chuka</div>';
         }
         var action = can('deliver')
-          ? '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')"><i class="fa fa-check"></i> Delivered</button>'
+          ? '<button class="btn small success" onclick="openDeliverModal(\'' + o.id + '\', \'' + it.product.replace(/'/g, "\\'") + '\')"><i class="fa fa-check"></i> Delivered</button>'
           : '';
         linesHtml += '<div class="product-line">' +
           '<div class="product-line-info">' +
@@ -871,7 +912,6 @@ function renderOrdersPage() {
         '</div>';
       }
     }
-
     html += '<div class="shop-group">' +
       '<div class="shop-group-head">' +
         '<div>' +
@@ -886,34 +926,28 @@ function renderOrdersPage() {
   list.innerHTML = html;
 }
 
-// ========== DELIVER MODAL ==========
+// ================== DELIVER MODAL ==================
 function openDeliverModal(orderId, product) {
-  if (!can('deliver')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (!can('deliver')) { alert('Permission nahi hai'); return; }
   currentDeliverOrderId = orderId;
   currentDeliverProduct = product;
-
   var order = null;
-  for (var i = 0; i < orders.length; i++) {
-    if (orders[i].id == orderId) order = orders[i];
-  }
+  for (var i = 0; i < orders.length; i++) { if (orders[i].id == orderId) order = orders[i]; }
   if (!order) return;
-
   var shopName = '';
   for (var i = 0; i < shopkeepers.length; i++) {
     if (shopkeepers[i].id == order.shopId) shopName = shopkeepers[i].name;
   }
-
   document.getElementById('deliverTitle').textContent = product + ' - ' + shopName;
   var pending = getPendingItemsForProduct(order, product);
   var body = document.getElementById('deliverBody');
   var html = '';
-
   for (var i = 0; i < pending.length; i++) {
     var p = pending[i];
     var totalText = qtyText(p.maund, p.kg);
     html += '<div class="deliver-row">' +
       '<div class="deliver-row-head">Baqi: ' + totalText + '</div>' +
-      '<div class="deliver-row-sub">Kitna deliver ho raha hai? (khaali chhoro to poora)</div>' +
+      '<div class="deliver-row-sub">Kitna deliver? (khaali chhoro to poora)</div>' +
       '<div class="deliver-qty-row">' +
         '<div class="form-group"><label>Maund</label>' +
           '<input type="number" class="deliver-maund" min="0" max="' + p.maund + '" placeholder="' + p.maund + '" data-idx="' + p.index + '" />' +
@@ -936,9 +970,7 @@ function confirmDelivery() {
   if (!can('deliver')) return;
   if (!currentDeliverOrderId || !currentDeliverProduct) return;
   var order = null;
-  for (var i = 0; i < orders.length; i++) {
-    if (orders[i].id == currentDeliverOrderId) order = orders[i];
-  }
+  for (var i = 0; i < orders.length; i++) { if (orders[i].id == currentDeliverOrderId) order = orders[i]; }
   if (!order) return;
   var maundInputs = document.querySelectorAll('.deliver-maund');
   var kgInputs = document.querySelectorAll('.deliver-kg');
@@ -959,7 +991,7 @@ function confirmDelivery() {
     it.deliveredKg = (parseInt(it.deliveredKg) || 0) + dk;
   }
   order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
-  saveData();
+  saveToFirebase('orders', order.id, order);
   closeDeliverModal();
   renderOrdersPage(); renderDashboard(); renderDelivery(); renderHistory();
   alert('Deliver ho gaya!');
@@ -968,9 +1000,7 @@ function markAllDelivered() {
   if (!can('deliver')) return;
   if (!currentDeliverOrderId || !currentDeliverProduct) return;
   var order = null;
-  for (var i = 0; i < orders.length; i++) {
-    if (orders[i].id == currentDeliverOrderId) order = orders[i];
-  }
+  for (var i = 0; i < orders.length; i++) { if (orders[i].id == currentDeliverOrderId) order = orders[i]; }
   if (!order) return;
   for (var i = 0; i < order.items.length; i++) {
     var it = order.items[i];
@@ -980,13 +1010,13 @@ function markAllDelivered() {
     }
   }
   order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
-  saveData();
+  saveToFirebase('orders', order.id, order);
   closeDeliverModal();
   renderOrdersPage(); renderDashboard(); renderDelivery(); renderHistory();
   alert('Poora deliver ho gaya!');
 }
 
-// ========== DELIVERY PAGE ==========
+// ================== DELIVERY PAGE ==================
 function renderDelivery() {
   var pending = [];
   for (var i = 0; i < orders.length; i++) {
@@ -1038,7 +1068,7 @@ function renderDelivery() {
           deliveredText = '<div class="p-delivered">✓ ' + qtyText(it.deliveredMaund, it.deliveredKg) + ' deliver ho chuka</div>';
         }
         var action = can('deliver')
-          ? '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')"><i class="fa fa-check"></i> Delivered</button>'
+          ? '<button class="btn small success" onclick="openDeliverModal(\'' + o.id + '\', \'' + it.product.replace(/'/g, "\\'") + '\')"><i class="fa fa-check"></i> Delivered</button>'
           : '';
         linesHtml += '<div class="product-line">' +
           '<div class="product-line-info">' +
@@ -1060,13 +1090,12 @@ function renderDelivery() {
   list.innerHTML = html;
 }
 
-// ========== HISTORY ==========
+// ================== HISTORY ==================
 function renderHistory() {
   var searchEl = document.getElementById('historySearch');
   var dateEl = document.getElementById('historyDate');
   var search = searchEl ? searchEl.value.toLowerCase() : '';
   var dateFilter = dateEl ? dateEl.value : '';
-
   var filtered = [];
   for (var i = 0; i < orders.length; i++) {
     var o = orders[i];
@@ -1114,7 +1143,7 @@ function clearHistoryFilter() {
   renderHistory();
 }
 
-// ========== MODAL ==========
+// ================== MODAL ==================
 function viewShopHistory(shopId) {
   var shopName = '';
   for (var i = 0; i < shopkeepers.length; i++) {
@@ -1154,13 +1183,39 @@ function closeModal() {
   document.getElementById('modal').classList.remove('active');
 }
 
-// ========== INIT ==========
+// ================== INIT ==================
 window.addEventListener('load', function() {
   applySettings();
-  if (isLoggedIn && currentUser) {
-    showApp();
-  } else {
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('appWrapper').style.display = 'none';
-  }
+
+  // Firebase load karo, phir data sync karo
+  initFirebase(function() {
+    loadAllData(function() {
+      // Data load ho gaya
+      var loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      var cachedUser = JSON.parse(localStorage.getItem('currentUser'));
+
+      if (loggedIn && cachedUser) {
+        // Verify user still exists in Firebase
+        var stillExists = false;
+        for (var i = 0; i < users.length; i++) {
+          if (users[i].id === cachedUser.id) {
+            stillExists = true;
+            currentUser = users[i];
+            break;
+          }
+        }
+        if (stillExists) {
+          isLoggedIn = true;
+          showApp();
+          return;
+        }
+      }
+      // Show login
+      isLoggedIn = false;
+      localStorage.setItem('isLoggedIn', 'false');
+      localStorage.removeItem('currentUser');
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('appWrapper').style.display = 'none';
+    });
+  });
 });
