@@ -1,10 +1,11 @@
-// Data Storage
+// ========== DATA ==========
 var shopkeepers = JSON.parse(localStorage.getItem('shopkeepers')) || [];
 var orders = JSON.parse(localStorage.getItem('orders')) || [];
 var products = JSON.parse(localStorage.getItem('products')) || ['Aata', 'Besan', 'Chawal ka Atta'];
 var settings = JSON.parse(localStorage.getItem('settings')) || { bizName: 'Atta Chakki', mode: 'auto' };
-var authUsers = JSON.parse(localStorage.getItem('authUsers')) || [];
+var users = JSON.parse(localStorage.getItem('users')) || [];
 var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+var currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 
 var currentDeliverOrderId = null;
 var currentDeliverProduct = null;
@@ -14,13 +15,22 @@ function saveData() {
   localStorage.setItem('orders', JSON.stringify(orders));
   localStorage.setItem('products', JSON.stringify(products));
   localStorage.setItem('settings', JSON.stringify(settings));
+  localStorage.setItem('users', JSON.stringify(users));
 }
 
-function saveAuth() {
-  localStorage.setItem('authUsers', JSON.stringify(authUsers));
+// ========== PERMISSIONS ==========
+function isAdmin() {
+  return currentUser && currentUser.isAdmin === true;
 }
 
-// ========== AUTH ==========
+function can(permission) {
+  if (!currentUser) return false;
+  if (currentUser.isAdmin) return true;
+  if (!currentUser.perms) return false;
+  return currentUser.perms[permission] === true;
+}
+
+// ========== LOGIN ==========
 function doLogin() {
   var user = document.getElementById('loginUser').value.trim();
   var pass = document.getElementById('loginPass').value;
@@ -30,16 +40,16 @@ function doLogin() {
   if (!user || !pass) { err.textContent = 'Username aur password daalein'; return; }
 
   var found = null;
-  for (var i = 0; i < authUsers.length; i++) {
-    if (authUsers[i].user === user && authUsers[i].pass === pass) found = authUsers[i];
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].user === user && users[i].pass === pass) found = users[i];
   }
-
   if (!found) { err.textContent = 'Ghalat username ya password'; return; }
 
+  currentUser = found;
   isLoggedIn = true;
   localStorage.setItem('isLoggedIn', 'true');
+  localStorage.setItem('currentUser', JSON.stringify(found));
   showApp();
-  alert('Welcome ' + user + '!');
 }
 
 function doSignup() {
@@ -53,26 +63,41 @@ function doSignup() {
   if (pass.length < 4) { err.textContent = 'Password kam az kam 4 characters'; return; }
   if (pass !== pass2) { err.textContent = 'Password match nahi kar rahe'; return; }
 
-  for (var i = 0; i < authUsers.length; i++) {
-    if (authUsers[i].user === user) { err.textContent = 'Ye username pehle se mojood hai'; return; }
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].user === user) { err.textContent = 'Ye username pehle se mojood hai'; return; }
   }
 
-  authUsers.push({ user: user, pass: pass });
-  saveAuth();
-  alert('Account ban gaya! Ab login karein.');
+  var adminUser = {
+    id: Date.now(),
+    user: user,
+    pass: pass,
+    display: user,
+    isAdmin: true,
+    perms: {
+      newOrder: true,
+      deliver: true,
+      shopkeepers: true,
+      history: true,
+      settings: true
+    }
+  };
+  users.push(adminUser);
+  saveData();
+  alert('Admin account ban gaya!\nAb login karein.');
   hideSignup();
   document.getElementById('loginUser').value = user;
   document.getElementById('loginPass').value = '';
-  document.getElementById('loginPass').focus();
 }
 
 function showSignup() {
   document.getElementById('signupSection').style.display = 'block';
+  document.getElementById('signupLinkBox').style.display = 'none';
   document.getElementById('loginError').textContent = '';
 }
 
 function hideSignup() {
   document.getElementById('signupSection').style.display = 'none';
+  document.getElementById('signupLinkBox').style.display = 'block';
   document.getElementById('signupUser').value = '';
   document.getElementById('signupPass').value = '';
   document.getElementById('signupPass2').value = '';
@@ -81,7 +106,9 @@ function hideSignup() {
 function doLogout() {
   if (!confirm('Logout karna hai?')) return;
   isLoggedIn = false;
+  currentUser = null;
   localStorage.setItem('isLoggedIn', 'false');
+  localStorage.removeItem('currentUser');
   document.getElementById('appWrapper').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginUser').value = '';
@@ -95,28 +122,75 @@ function changePassword() {
   if (!oldP || !newP) { alert('Dono password daalein'); return; }
   if (newP.length < 4) { alert('Naya password kam az kam 4 characters'); return; }
 
-  for (var i = 0; i < authUsers.length; i++) {
-    if (authUsers[i].pass === oldP) {
-      authUsers[i].pass = newP;
-      saveAuth();
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].id === currentUser.id) {
+      if (users[i].pass !== oldP) { alert('Purana password ghalat hai'); return; }
+      users[i].pass = newP;
+      currentUser = users[i];
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      saveData();
       document.getElementById('oldPass').value = '';
       document.getElementById('newPass').value = '';
       alert('Password change ho gaya!');
       return;
     }
   }
-  alert('Purana password ghalat hai');
 }
 
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appWrapper').style.display = 'block';
+  renderSidebarNav();
   applySettings();
   renderDashboard();
   renderShopkeepers();
   prepareOrderForm();
   renderHistory();
   renderSettings();
+  if (isAdmin()) renderUsers();
+}
+
+// ========== SIDEBAR (Permissions ke hisaab se) ==========
+function renderSidebarNav() {
+  var nav = document.getElementById('sidebarNav');
+  var html = '';
+
+  html += '<button class="nav-btn active" onclick="showPage(\'dashboard\', this)"><i class="fa fa-home"></i> <span>Dashboard</span></button>';
+
+  if (can('newOrder')) {
+    html += '<button class="nav-btn" onclick="showPage(\'neworder\', this)"><i class="fa fa-plus-circle"></i> <span>Naya Order</span></button>';
+  }
+  html += '<button class="nav-btn" onclick="showPage(\'orders\', this)"><i class="fa fa-truck"></i> <span>Orders / Loading</span></button>';
+
+  if (can('shopkeepers')) {
+    html += '<button class="nav-btn" onclick="showPage(\'shopkeepers\', this)"><i class="fa fa-users"></i> <span>Shopkeepers</span></button>';
+  }
+
+  html += '<button class="nav-btn" onclick="showPage(\'delivery\', this)"><i class="fa fa-check-circle"></i> <span>Delivery</span></button>';
+
+  if (can('history')) {
+    html += '<button class="nav-btn" onclick="showPage(\'history\', this)"><i class="fa fa-clock"></i> <span>History</span></button>';
+  }
+
+  if (isAdmin()) {
+    html += '<button class="nav-btn" onclick="showPage(\'users\', this)"><i class="fa fa-user-shield"></i> <span>Users</span></button>';
+  }
+
+  if (can('settings')) {
+    html += '<button class="nav-btn" onclick="showPage(\'settings\', this)"><i class="fa fa-gear"></i> <span>Settings</span></button>';
+  }
+
+  html += '<button class="nav-btn" onclick="doLogout()"><i class="fa fa-sign-out-alt"></i> <span>Logout</span></button>';
+
+  nav.innerHTML = html;
+
+  // User info
+  if (currentUser) {
+    document.getElementById('userNameLabel').textContent = currentUser.display || currentUser.user;
+    var roleEl = document.getElementById('userRoleLabel');
+    roleEl.textContent = currentUser.isAdmin ? 'Admin' : 'Staff';
+    roleEl.className = 'user-role' + (currentUser.isAdmin ? ' admin' : '');
+  }
 }
 
 // ========== HELPERS ==========
@@ -124,23 +198,19 @@ function todayStr() {
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
-
 function formatDate(s) {
   if (!s) return '';
   var d = new Date(s + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
-
 function formatDateLong(s) {
   var d = new Date(s + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 }
-
 function toggleSidebar() {
   var sb = document.getElementById('sidebar');
   if (sb) sb.classList.toggle('open');
 }
-
 function qtyText(maund, kg) {
   var m = parseInt(maund) || 0;
   var k = parseInt(kg) || 0;
@@ -150,14 +220,12 @@ function qtyText(maund, kg) {
   if (k > 0) parts.push(k + ' kg');
   return parts.join(' ');
 }
-
 function totalKgText(totalKg) {
   var total = parseInt(totalKg) || 0;
   var m = Math.floor(total / 40);
   var k = total % 40;
   return qtyText(m, k);
 }
-
 function productQtySummary(items) {
   var totalMaund = 0;
   var kgList = [];
@@ -173,7 +241,6 @@ function productQtySummary(items) {
   if (parts.length === 0) return '0 kg';
   return parts.join(' ');
 }
-
 function getPendingItemsForProduct(order, product) {
   var pending = [];
   for (var i = 0; i < order.items.length; i++) {
@@ -185,13 +252,10 @@ function getPendingItemsForProduct(order, product) {
     var dk = parseInt(it.deliveredKg) || 0;
     var remM = m - dm;
     var remK = k - dk;
-    if (remM > 0 || remK > 0) {
-      pending.push({ item: it, index: i, maund: remM, kg: remK });
-    }
+    if (remM > 0 || remK > 0) pending.push({ item: it, index: i, maund: remM, kg: remK });
   }
   return pending;
 }
-
 function checkOrderDelivered(order) {
   for (var i = 0; i < order.items.length; i++) {
     var it = order.items[i];
@@ -204,7 +268,15 @@ function checkOrderDelivered(order) {
   return true;
 }
 
+// ========== NAVIGATION ==========
 function showPage(pageId, btn) {
+  // Permission check
+  if (pageId === 'neworder' && !can('newOrder')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (pageId === 'shopkeepers' && !can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (pageId === 'history' && !can('history')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (pageId === 'settings' && !can('settings')) { alert('Aap ko ye permission nahi hai'); return; }
+  if (pageId === 'users' && !isAdmin()) { alert('Sirf Admin ye page dekh sakta hai'); return; }
+
   var pages = document.querySelectorAll('.page');
   for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
   var target = document.getElementById(pageId);
@@ -228,10 +300,12 @@ function showPage(pageId, btn) {
   if (pageId === 'delivery') renderDelivery();
   if (pageId === 'history') renderHistory();
   if (pageId === 'settings') renderSettings();
+  if (pageId === 'users') renderUsers();
 
   window.scrollTo(0, 0);
 }
 
+// ========== SETTINGS ==========
 function applySettings() {
   var t1 = document.getElementById('topbarTitle');
   var t2 = document.getElementById('sidebarTitle');
@@ -248,18 +322,15 @@ function applySettings() {
     else body.classList.add('pc-mode');
   }
 }
-
 function setMode(m) {
   settings.mode = m;
   saveData(); applySettings(); renderSettings();
   alert('Mode: ' + (m === 'mobile' ? 'Mobile' : 'PC'));
 }
-
 function toggleMode() {
   settings.mode = settings.mode === 'mobile' ? 'pc' : 'mobile';
   saveData(); applySettings();
 }
-
 function saveBizName() {
   var el = document.getElementById('setBizName');
   var name = el.value.trim();
@@ -268,7 +339,6 @@ function saveBizName() {
   saveData(); applySettings();
   alert('Naam save ho gaya!');
 }
-
 function renderSettings() {
   var nameEl = document.getElementById('setBizName');
   if (nameEl) nameEl.value = settings.bizName;
@@ -278,22 +348,16 @@ function renderSettings() {
   if (mobBtn) mobBtn.classList.toggle('active', settings.mode === 'mobile');
   renderProductsList();
 }
-
 function renderProductsList() {
   var list = document.getElementById('productsList');
   if (!list) return;
-  if (products.length === 0) {
-    list.innerHTML = '<p class="hint">Koi product nahi.</p>';
-    return;
-  }
+  if (products.length === 0) { list.innerHTML = '<p class="hint">Koi product nahi.</p>'; return; }
   var html = '';
   for (var i = 0; i < products.length; i++) {
-    html += '<div class="product-chip">' + products[i] +
-      '<button onclick="deleteProduct(' + i + ')">&times;</button></div>';
+    html += '<div class="product-chip">' + products[i] + '<button onclick="deleteProduct(' + i + ')">&times;</button></div>';
   }
   list.innerHTML = html;
 }
-
 function addProduct() {
   var input = document.getElementById('newProductName');
   var name = input.value.trim();
@@ -303,11 +367,158 @@ function addProduct() {
   saveData(); input.value = '';
   renderProductsList(); prepareOrderForm();
 }
-
 function deleteProduct(i) {
   if (!confirm('Delete: ' + products[i] + '?')) return;
   products.splice(i, 1);
   saveData(); renderProductsList(); prepareOrderForm();
+}
+
+// ========== USERS MANAGEMENT ==========
+function saveUser() {
+  if (!isAdmin()) { alert('Sirf Admin user bana sakta hai'); return; }
+  var id = document.getElementById('userId').value;
+  var user = document.getElementById('newUserName').value.trim();
+  var pass = document.getElementById('newUserPass').value;
+  var display = document.getElementById('newUserDisplay').value.trim();
+
+  if (!user || !pass) { alert('Username aur password zaroori!'); return; }
+  if (pass.length < 4) { alert('Password kam az kam 4 characters'); return; }
+
+  // Check duplicate
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].user === user && users[i].id != id) {
+      alert('Ye username pehle se mojood hai');
+      return;
+    }
+  }
+
+  var perms = {
+    newOrder: document.getElementById('permNewOrder').checked,
+    deliver: document.getElementById('permDeliver').checked,
+    shopkeepers: document.getElementById('permShopkeepers').checked,
+    history: document.getElementById('permHistory').checked,
+    settings: document.getElementById('permSettings').checked
+  };
+
+  if (id) {
+    for (var i = 0; i < users.length; i++) {
+      if (users[i].id == id) {
+        users[i].user = user;
+        users[i].pass = pass;
+        users[i].display = display || user;
+        users[i].perms = perms;
+      }
+    }
+  } else {
+    users.push({
+      id: Date.now(),
+      user: user,
+      pass: pass,
+      display: display || user,
+      isAdmin: false,
+      perms: perms
+    });
+  }
+  saveData();
+  resetUserForm();
+  renderUsers();
+  alert('User save ho gaya!');
+}
+
+function resetUserForm() {
+  document.getElementById('userId').value = '';
+  document.getElementById('newUserName').value = '';
+  document.getElementById('newUserPass').value = '';
+  document.getElementById('newUserDisplay').value = '';
+  document.getElementById('permNewOrder').checked = true;
+  document.getElementById('permDeliver').checked = true;
+  document.getElementById('permShopkeepers').checked = false;
+  document.getElementById('permHistory').checked = true;
+  document.getElementById('permSettings').checked = false;
+  document.getElementById('userFormTitle').textContent = 'Naya User Banayein';
+}
+
+function editUser(id) {
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].id == id) {
+      var u = users[i];
+      if (u.isAdmin) { alert('Admin ko edit nahi kar sakte'); return; }
+      document.getElementById('userId').value = u.id;
+      document.getElementById('newUserName').value = u.user;
+      document.getElementById('newUserPass').value = u.pass;
+      document.getElementById('newUserDisplay').value = u.display || '';
+      document.getElementById('permNewOrder').checked = u.perms.newOrder === true;
+      document.getElementById('permDeliver').checked = u.perms.deliver === true;
+      document.getElementById('permShopkeepers').checked = u.perms.shopkeepers === true;
+      document.getElementById('permHistory').checked = u.perms.history === true;
+      document.getElementById('permSettings').checked = u.perms.settings === true;
+      document.getElementById('userFormTitle').textContent = 'User Edit Karein';
+      window.scrollTo(0, 0);
+    }
+  }
+}
+
+function deleteUser(id) {
+  if (!isAdmin()) return;
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].id == id && users[i].isAdmin) {
+      alert('Admin ko delete nahi kar sakte');
+      return;
+    }
+  }
+  if (!confirm('Pakka user delete karein?')) return;
+  var newList = [];
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].id != id) newList.push(users[i]);
+  }
+  users = newList;
+  saveData();
+  renderUsers();
+}
+
+function renderUsers() {
+  if (!isAdmin()) return;
+  var list = document.getElementById('usersList');
+  if (!list) return;
+  if (users.length === 0) {
+    list.innerHTML = '<div class="empty"><i class="fa fa-users"></i>Koi user nahi.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < users.length; i++) {
+    var u = users[i];
+    var badge = u.isAdmin ? '<span class="badge admin-badge">ADMIN</span>' : '<span class="badge staff-badge">STAFF</span>';
+
+    var chips = '';
+    var permsList = [
+      { k: 'newOrder', label: 'Naya Order' },
+      { k: 'deliver', label: 'Deliver' },
+      { k: 'shopkeepers', label: 'Shopkeepers' },
+      { k: 'history', label: 'History' },
+      { k: 'settings', label: 'Settings' }
+    ];
+    for (var j = 0; j < permsList.length; j++) {
+      var on = u.isAdmin || (u.perms && u.perms[permsList[j].k] === true);
+      chips += '<span class="perm-chip ' + (on ? '' : 'off') + '">' + permsList[j].label + '</span>';
+    }
+
+    var actions = '';
+    if (!u.isAdmin) {
+      actions = '<button class="btn small" onclick="editUser(' + u.id + ')"><i class="fa fa-edit"></i> Edit</button>' +
+                '<button class="btn small danger" onclick="deleteUser(' + u.id + ')"><i class="fa fa-trash"></i></button>';
+    }
+
+    html += '<div class="item user-item">' +
+      '<div class="item-info">' +
+        '<h4><i class="fa fa-user-circle"></i> ' + (u.display || u.user) + '</h4>' +
+        '<p><b>@' + u.user + '</b></p>' +
+        badge +
+        '<div class="perm-chips">' + chips + '</div>' +
+      '</div>' +
+      '<div class="item-actions">' + actions + '</div>' +
+    '</div>';
+  }
+  list.innerHTML = html;
 }
 
 // ========== DASHBOARD ==========
@@ -339,7 +550,6 @@ function renderDashboard() {
     list.innerHTML = '<div class="empty"><i class="fa fa-check-circle"></i>Aaj koi pending order nahi.</div>';
     return;
   }
-
   var byProduct = {};
   for (var i = 0; i < todayPending.length; i++) {
     var o = todayPending[i];
@@ -353,7 +563,6 @@ function renderDashboard() {
       byProduct[p].push({ maund: remM, kg: remK });
     }
   }
-
   var rows = '';
   var keys = Object.keys(byProduct);
   for (var k = 0; k < keys.length; k++) {
@@ -367,6 +576,7 @@ function renderDashboard() {
 
 // ========== SHOPKEEPERS ==========
 function saveShopkeeper() {
+  if (!can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
   var id = document.getElementById('shopId').value;
   var name = document.getElementById('shopName').value.trim();
   var mobile = document.getElementById('shopMobile').value.trim();
@@ -386,7 +596,6 @@ function saveShopkeeper() {
   saveData(); resetShopForm(); renderShopkeepers(); renderDashboard();
   alert('Shopkeeper save!');
 }
-
 function resetShopForm() {
   document.getElementById('shopId').value = '';
   document.getElementById('shopName').value = '';
@@ -394,8 +603,8 @@ function resetShopForm() {
   document.getElementById('shopAddress').value = '';
   document.getElementById('shopFormTitle').textContent = 'Naya Shopkeeper Add Karein';
 }
-
 function editShopkeeper(id) {
+  if (!can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
   for (var i = 0; i < shopkeepers.length; i++) {
     if (shopkeepers[i].id == id) {
       var s = shopkeepers[i];
@@ -408,8 +617,8 @@ function editShopkeeper(id) {
   }
   window.scrollTo(0, 0);
 }
-
 function deleteShopkeeper(id) {
+  if (!can('shopkeepers')) { alert('Aap ko ye permission nahi hai'); return; }
   if (!confirm('Pakka delete?')) return;
   var newList = [];
   for (var i = 0; i < shopkeepers.length; i++) {
@@ -418,7 +627,6 @@ function deleteShopkeeper(id) {
   shopkeepers = newList;
   saveData(); renderShopkeepers(); renderDashboard();
 }
-
 function renderShopkeepers() {
   var list = document.getElementById('shopkeepersList');
   if (shopkeepers.length === 0) {
@@ -435,6 +643,11 @@ function renderShopkeepers() {
         if (orders[j].status === 'Pending' || orders[j].status === 'Partial') pending++;
       }
     }
+    var editBtns = '';
+    if (can('shopkeepers')) {
+      editBtns = '<button class="btn small" onclick="editShopkeeper(' + s.id + ')"><i class="fa fa-edit"></i> Edit</button>' +
+                 '<button class="btn small danger" onclick="deleteShopkeeper(' + s.id + ')"><i class="fa fa-trash"></i></button>';
+    }
     html += '<div class="item">' +
       '<div class="item-info">' +
         '<h4><i class="fa fa-store"></i> ' + s.name + '</h4>' +
@@ -444,12 +657,15 @@ function renderShopkeepers() {
       '</div>' +
       '<div class="item-actions">' +
         '<button class="btn small" onclick="viewShopHistory(' + s.id + ')"><i class="fa fa-history"></i> History</button>' +
-        '<button class="btn small" onclick="editShopkeeper(' + s.id + ')"><i class="fa fa-edit"></i> Edit</button>' +
-        '<button class="btn small danger" onclick="deleteShopkeeper(' + s.id + ')"><i class="fa fa-trash"></i></button>' +
+        editBtns +
       '</div>' +
     '</div>';
   }
   list.innerHTML = html;
+  if (!can('shopkeepers')) {
+    var form = document.getElementById('shopkeeperFormBox');
+    if (form) form.style.display = 'none';
+  }
 }
 
 // ========== NEW ORDER ==========
@@ -471,7 +687,6 @@ function prepareOrderForm() {
   if (rows) { rows.innerHTML = ''; addProductRow(); }
   updateSummary();
 }
-
 function addProductRow() {
   var container = document.getElementById('productRows');
   if (!container) return;
@@ -487,10 +702,7 @@ function addProductRow() {
   div.innerHTML = '<div class="product-row-head">' +
       '<h4><i class="fa fa-box"></i> Product #' + (idx + 1) + '</h4>' + removeBtn +
     '</div>' +
-    '<div class="form-group">' +
-      '<label>Product</label>' +
-      '<select class="prod-select" onchange="updateSummary()">' + productsHtml + '</select>' +
-    '</div>' +
+    '<div class="form-group"><label>Product</label><select class="prod-select" onchange="updateSummary()">' + productsHtml + '</select></div>' +
     '<div class="qty-row">' +
       '<div class="form-group"><label>Maund</label><input type="number" class="maund-input" min="0" placeholder="0" oninput="updateSummary()" /></div>' +
       '<div class="form-group"><label>Kg</label><input type="number" class="kg-input" min="0" max="39" placeholder="0" oninput="updateSummary()" /></div>' +
@@ -499,7 +711,6 @@ function addProductRow() {
   container.appendChild(div);
   updateSummary();
 }
-
 function removeProductRow(btn) {
   btn.parentNode.parentNode.remove();
   var rows = document.querySelectorAll('.product-row');
@@ -508,7 +719,6 @@ function removeProductRow(btn) {
   }
   updateSummary();
 }
-
 function updateSummary() {
   var rows = document.querySelectorAll('.product-row');
   var totalKg = 0, lines = [];
@@ -534,8 +744,8 @@ function updateSummary() {
   html += '<div class="summary-line"><span>TOTAL</span><span>' + totalKgText(totalKg) + '</span></div>';
   summary.innerHTML = html;
 }
-
 function saveMultiOrder() {
+  if (!can('newOrder')) { alert('Aap ko ye permission nahi hai'); return; }
   var shopId = document.getElementById('orderShop').value;
   var date = document.getElementById('orderDate').value;
   var notes = document.getElementById('orderNotes').value.trim();
@@ -557,7 +767,9 @@ function saveMultiOrder() {
   if (items.length === 0) { alert('Kam az kam ek product ki quantity daalein!'); return; }
   orders.push({
     id: Date.now(), shopId: parseInt(shopId), items: items, totalKg: totalKg,
-    date: date, notes: notes, status: 'Pending', createdAt: new Date().toISOString()
+    date: date, notes: notes, status: 'Pending',
+    createdBy: currentUser ? currentUser.user : 'unknown',
+    createdAt: new Date().toISOString()
   });
   saveData();
   var shopName = '';
@@ -647,15 +859,15 @@ function renderOrdersPage() {
         if (it.deliveredMaund > 0 || it.deliveredKg > 0) {
           deliveredText = '<div class="p-delivered">✓ ' + qtyText(it.deliveredMaund, it.deliveredKg) + ' deliver ho chuka</div>';
         }
+        var action = can('deliver')
+          ? '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')"><i class="fa fa-check"></i> Delivered</button>'
+          : '';
         linesHtml += '<div class="product-line">' +
           '<div class="product-line-info">' +
             '<span class="p-name">📦 ' + it.product + '</span>' +
             '<span class="p-qty">' + qtyText(remM, remK) + '</span>' +
             deliveredText +
-          '</div>' +
-          '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')">' +
-            '<i class="fa fa-check"></i> Delivered' +
-          '</button>' +
+          '</div>' + action +
         '</div>';
       }
     }
@@ -676,6 +888,7 @@ function renderOrdersPage() {
 
 // ========== DELIVER MODAL ==========
 function openDeliverModal(orderId, product) {
+  if (!can('deliver')) { alert('Aap ko ye permission nahi hai'); return; }
   currentDeliverOrderId = orderId;
   currentDeliverProduct = product;
 
@@ -714,24 +927,21 @@ function openDeliverModal(orderId, product) {
   body.innerHTML = html;
   document.getElementById('deliverModal').classList.add('active');
 }
-
 function closeDeliverModal() {
   document.getElementById('deliverModal').classList.remove('active');
   currentDeliverOrderId = null;
   currentDeliverProduct = null;
 }
-
 function confirmDelivery() {
+  if (!can('deliver')) return;
   if (!currentDeliverOrderId || !currentDeliverProduct) return;
   var order = null;
   for (var i = 0; i < orders.length; i++) {
     if (orders[i].id == currentDeliverOrderId) order = orders[i];
   }
   if (!order) return;
-
   var maundInputs = document.querySelectorAll('.deliver-maund');
   var kgInputs = document.querySelectorAll('.deliver-kg');
-
   for (var i = 0; i < maundInputs.length; i++) {
     var idx = parseInt(maundInputs[i].getAttribute('data-idx'));
     var dm = parseInt(maundInputs[i].value);
@@ -748,22 +958,20 @@ function confirmDelivery() {
     it.deliveredMaund = (parseInt(it.deliveredMaund) || 0) + dm;
     it.deliveredKg = (parseInt(it.deliveredKg) || 0) + dk;
   }
-
   order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
   saveData();
   closeDeliverModal();
   renderOrdersPage(); renderDashboard(); renderDelivery(); renderHistory();
   alert('Deliver ho gaya!');
 }
-
 function markAllDelivered() {
+  if (!can('deliver')) return;
   if (!currentDeliverOrderId || !currentDeliverProduct) return;
   var order = null;
   for (var i = 0; i < orders.length; i++) {
     if (orders[i].id == currentDeliverOrderId) order = orders[i];
   }
   if (!order) return;
-
   for (var i = 0; i < order.items.length; i++) {
     var it = order.items[i];
     if (it.product === currentDeliverProduct) {
@@ -771,7 +979,6 @@ function markAllDelivered() {
       it.deliveredKg = parseInt(it.kg) || 0;
     }
   }
-
   order.status = checkOrderDelivered(order) ? 'Delivered' : 'Partial';
   saveData();
   closeDeliverModal();
@@ -790,14 +997,12 @@ function renderDelivery() {
     list.innerHTML = '<div class="empty"><i class="fa fa-check-circle"></i>Koi pending order nahi!</div>';
     return;
   }
-
   var grouped = {};
   for (var i = 0; i < pending.length; i++) {
     var sid = pending[i].shopId;
     if (!grouped[sid]) grouped[sid] = [];
     grouped[sid].push(pending[i]);
   }
-
   var html = '';
   var keys = Object.keys(grouped);
   for (var k = 0; k < keys.length; k++) {
@@ -820,7 +1025,6 @@ function renderDelivery() {
         totalKg += (remM * 40) + remK;
       }
     }
-
     var linesHtml = '';
     for (var i = 0; i < sOrders.length; i++) {
       var o = sOrders[i];
@@ -833,19 +1037,18 @@ function renderDelivery() {
         if (it.deliveredMaund > 0 || it.deliveredKg > 0) {
           deliveredText = '<div class="p-delivered">✓ ' + qtyText(it.deliveredMaund, it.deliveredKg) + ' deliver ho chuka</div>';
         }
+        var action = can('deliver')
+          ? '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')"><i class="fa fa-check"></i> Delivered</button>'
+          : '';
         linesHtml += '<div class="product-line">' +
           '<div class="product-line-info">' +
             '<span class="p-name">📦 ' + it.product + '</span>' +
             '<span class="p-qty">' + qtyText(remM, remK) + '</span>' +
             deliveredText +
-          '</div>' +
-          '<button class="btn small success" onclick="openDeliverModal(' + o.id + ', \'' + it.product.replace(/'/g, "\\'") + '\')">' +
-            '<i class="fa fa-check"></i> Delivered' +
-          '</button>' +
+          '</div>' + action +
         '</div>';
       }
     }
-
     html += '<div class="shop-group">' +
       '<div class="shop-group-head">' +
         '<div><h4><i class="fa fa-store"></i> ' + shopName + '</h4>' +
@@ -879,13 +1082,11 @@ function renderHistory() {
     filtered.push(o);
   }
   filtered.reverse();
-
   var list = document.getElementById('historyList');
   if (filtered.length === 0) {
     list.innerHTML = '<div class="empty"><i class="fa fa-clock"></i>Koi history nahi.</div>';
     return;
   }
-
   var html = '';
   for (var i = 0; i < filtered.length; i++) {
     var o = filtered[i];
@@ -907,7 +1108,6 @@ function renderHistory() {
   }
   list.innerHTML = html;
 }
-
 function clearHistoryFilter() {
   document.getElementById('historySearch').value = '';
   document.getElementById('historyDate').value = '';
@@ -950,7 +1150,6 @@ function viewShopHistory(shopId) {
   }
   document.getElementById('modal').classList.add('active');
 }
-
 function closeModal() {
   document.getElementById('modal').classList.remove('active');
 }
@@ -958,7 +1157,7 @@ function closeModal() {
 // ========== INIT ==========
 window.addEventListener('load', function() {
   applySettings();
-  if (isLoggedIn) {
+  if (isLoggedIn && currentUser) {
     showApp();
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
