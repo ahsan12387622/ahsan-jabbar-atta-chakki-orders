@@ -1,24 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Atta Chakki - Order Management</title>
-  <link rel="stylesheet" href="style.css" />
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Atta Chakki - Order Management</title>
+<link rel="stylesheet" href="style.css" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
 
-<!-- TOP BAR (Mobile) -->
+<!-- TOP BAR -->
 <div class="topbar">
-  <div class="topbar-logo">🌾 Atta Chakki</div>
-  <button class="menu-toggle" onclick="toggleSidebar()"><i class="fa fa-bars"></i></button>
+  <div class="topbar-logo">
+    <i class="fa fa-wheat-awn"></i>
+    <span id="topbarTitle">Atta Chakki</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="icon-btn" onclick="toggleMode()" title="Mobile/PC Mode">
+      <i class="fa fa-mobile-screen" id="modeIcon"></i>
+    </button>
+    <button class="icon-btn menu-btn" onclick="toggleSidebar()">
+      <i class="fa fa-bars"></i>
+    </button>
+  </div>
 </div>
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    🌾 <span>Atta Chakki</span>
+    <i class="fa fa-wheat-awn"></i>
+    <span id="sidebarTitle">Atta Chakki</span>
   </div>
   <nav class="sidebar-nav">
     <button class="nav-btn active" onclick="showPage('dashboard', this)">
@@ -42,17 +53,22 @@
     <button class="nav-btn" onclick="showPage('history', this)">
       <i class="fa fa-clock"></i> <span>History</span>
     </button>
+    <button class="nav-btn" onclick="showPage('settings', this)">
+      <i class="fa fa-gear"></i> <span>Settings</span>
+    </button>
   </nav>
 </aside>
 
-<!-- MAIN CONTENT -->
-<main class="main">
-  
+<!-- MAIN -->
+<main class="main" id="main">
+
   <!-- ========== DASHBOARD ========== -->
   <section id="dashboard" class="page active">
     <div class="page-header">
-      <h1>Dashboard</h1>
-      <p class="page-sub">Aaj: <b id="todayDateLabel">—</b></p>
+      <div>
+        <h1>Dashboard</h1>
+        <p class="page-sub" id="todayDateLabel">—</p>
+      </div>
     </div>
 
     <div class="cards">
@@ -86,69 +102,66 @@
       </div>
     </div>
 
-    <!-- AAJ KA LOAD -->
-    <div class="section-card">
-      <div class="section-head">
-        <h2><i class="fa fa-truck"></i> Aaj Ka Load (Gari Mein Jaana Hai)</h2>
-        <span class="badge-big" id="todayLoadBadge">0 bags</span>
+    <div class="box">
+      <div class="box-head">
+        <h2><i class="fa fa-truck"></i> Aaj Ka Load</h2>
+        <span class="pill" id="todayLoadBadge">0</span>
       </div>
       <div id="todayLoadList"></div>
-    </div>
-
-    <div class="quick-actions">
-      <button class="btn primary" onclick="showPage('neworder')"><i class="fa fa-plus"></i> Naya Order</button>
-      <button class="btn" onclick="showPage('loading')"><i class="fa fa-truck"></i> Truck Loading</button>
-      <button class="btn" onclick="showPage('shopkeepers')"><i class="fa fa-user-plus"></i> Naya Shopkeeper</button>
     </div>
   </section>
 
   <!-- ========== NEW ORDER ========== -->
   <section id="neworder" class="page">
     <div class="page-header">
-      <h1>Naya Order</h1>
-      <p class="page-sub">Shopkeeper se phone pe aaya order yahan save karein</p>
+      <div>
+        <h1>Naya Order</h1>
+        <p class="page-sub">Ek shopkeeper ke multiple products ek saath add karein</p>
+      </div>
     </div>
 
-    <div class="form-box">
+    <div class="box">
       <div class="form-group">
         <label><i class="fa fa-store"></i> Shopkeeper *</label>
         <select id="orderShop"></select>
       </div>
 
-      <div class="form-group">
-        <label><i class="fa fa-box"></i> Product *</label>
-        <select id="orderProduct">
-          <option value="Aata">Aata</option>
-          <option value="Besan">Besan</option>
-          <option value="Chawal ka Atta">Chawal ka Atta</option>
-        </select>
-      </div>
-
       <div class="form-row">
-        <div class="form-group">
-          <label><i class="fa fa-weight-hanging"></i> Quantity (bags) *</label>
-          <input type="number" id="orderQty" min="1" placeholder="Jaise 5" />
-        </div>
         <div class="form-group">
           <label><i class="fa fa-calendar"></i> Order Date *</label>
           <input type="date" id="orderDate" />
         </div>
+        <div class="form-group">
+          <label><i class="fa fa-sticky-note"></i> Notes (optional)</label>
+          <input type="text" id="orderNotes" placeholder="Koi baat..." />
+        </div>
       </div>
 
-      <div class="form-group">
-        <label><i class="fa fa-sticky-note"></i> Notes (optional)</label>
-        <textarea id="orderNotes" placeholder="Koi khaas baat..."></textarea>
-      </div>
+      <hr class="divider">
 
-      <button class="btn primary big" onclick="saveOrder()"><i class="fa fa-save"></i> Order Save Karein</button>
+      <h3 class="section-title"><i class="fa fa-boxes-stacked"></i> Products Add Karein</h3>
+
+      <div id="productRows"></div>
+
+      <button class="btn add-product-btn" onclick="addProductRow()">
+        <i class="fa fa-plus"></i> Aur Product Add Karein
+      </button>
+
+      <div class="order-summary" id="orderSummary"></div>
+
+      <button class="btn primary big" onclick="saveMultiOrder()">
+        <i class="fa fa-save"></i> Order Save Karein
+      </button>
     </div>
   </section>
 
   <!-- ========== TRUCK LOADING ========== -->
   <section id="loading" class="page">
     <div class="page-header">
-      <h1><i class="fa fa-truck"></i> Truck Loading</h1>
-      <p class="page-sub">Aaj kis dukaan pe kitna maal dena hai — sab ek nazar mein</p>
+      <div>
+        <h1><i class="fa fa-truck"></i> Truck Loading</h1>
+        <p class="page-sub">Kis dukaan pe kitna maal dena hai — sab ek nazar mein</p>
+      </div>
     </div>
 
     <div class="filters">
@@ -160,18 +173,19 @@
     </div>
 
     <div class="load-summary" id="loadSummary"></div>
-
     <div id="loadingList" class="list"></div>
   </section>
 
   <!-- ========== SHOPKEEPERS ========== -->
   <section id="shopkeepers" class="page">
     <div class="page-header">
-      <h1>Shopkeepers</h1>
-      <p class="page-sub">Apne tamam shopkeepers yahan manage karein</p>
+      <div>
+        <h1>Shopkeepers</h1>
+        <p class="page-sub">Apne tamam shopkeepers manage karein</p>
+      </div>
     </div>
 
-    <div class="form-box">
+    <div class="box">
       <h3 id="shopFormTitle">Naya Shopkeeper Add Karein</h3>
       <input type="hidden" id="shopId" />
       <div class="form-row">
@@ -186,7 +200,7 @@
       </div>
       <div class="form-group">
         <label>Shop / Address</label>
-        <input type="text" id="shopAddress" placeholder="Address ya shop ka naam" />
+        <input type="text" id="shopAddress" placeholder="Address" />
       </div>
       <button class="btn primary" onclick="saveShopkeeper()"><i class="fa fa-save"></i> Save</button>
       <button class="btn" onclick="resetShopForm()">Cancel</button>
@@ -198,8 +212,10 @@
   <!-- ========== ORDERS ========== -->
   <section id="orders" class="page">
     <div class="page-header">
-      <h1>All Orders</h1>
-      <p class="page-sub">Tamam orders — search aur filter karein</p>
+      <div>
+        <h1>All Orders</h1>
+        <p class="page-sub">Search aur filter karein</p>
+      </div>
     </div>
 
     <div class="filters">
@@ -216,8 +232,10 @@
   <!-- ========== DELIVERY ========== -->
   <section id="delivery" class="page">
     <div class="page-header">
-      <h1>Delivery</h1>
-      <p class="page-sub">Shopkeeper ke hisaab se pending orders — dukaan pe de kar Delivered dabayein</p>
+      <div>
+        <h1>Delivery</h1>
+        <p class="page-sub">Shopkeeper ke hisaab se pending orders</p>
+      </div>
     </div>
     <div id="deliveryList" class="list"></div>
   </section>
@@ -225,16 +243,69 @@
   <!-- ========== HISTORY ========== -->
   <section id="history" class="page">
     <div class="page-header">
-      <h1>Order History</h1>
-      <p class="page-sub">Purane delivered orders</p>
+      <div>
+        <h1>Order History</h1>
+        <p class="page-sub">Purane delivered orders</p>
+      </div>
     </div>
 
     <div class="filters">
-      <input type="text" id="historySearch" placeholder="🔍 Shopkeeper name..." oninput="renderHistory()" />
+      <input type="text" id="historySearch" placeholder="🔍 Shopkeeper..." oninput="renderHistory()" />
       <input type="date" id="historyDate" onchange="renderHistory()" />
       <button class="btn" onclick="clearHistoryFilter()">Clear</button>
     </div>
     <div id="historyList" class="list"></div>
+  </section>
+
+  <!-- ========== SETTINGS ========== -->
+  <section id="settings" class="page">
+    <div class="page-header">
+      <div>
+        <h1>Settings</h1>
+        <p class="page-sub">Website customise karein</p>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3><i class="fa fa-pen"></i> Business Name</h3>
+      <div class="form-group">
+        <label>Website ka naam (jo upar dikhe)</label>
+        <input type="text" id="setBizName" placeholder="Jaise: Ahsan Atta Chakki" />
+      </div>
+      <button class="btn primary" onclick="saveBizName()"><i class="fa fa-save"></i> Save</button>
+    </div>
+
+    <div class="box">
+      <h3><i class="fa fa-mobile-screen"></i> Mode (Mobile / PC)</h3>
+      <p class="hint">Mobile mode mein buttons bade aur easy touch ke liye</p>
+      <div class="mode-switch">
+        <button class="mode-opt" id="modePC" onclick="setMode('pc')">
+          <i class="fa fa-desktop"></i> PC Mode
+        </button>
+        <button class="mode-opt" id="modeMobile" onclick="setMode('mobile')">
+          <i class="fa fa-mobile-screen"></i> Mobile Mode
+        </button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3><i class="fa fa-boxes-stacked"></i> Products Manage Karein</h3>
+      <p class="hint">Yahan se products add ya delete karein</p>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Naya Product</label>
+          <input type="text" id="newProductName" placeholder="Jaise: Makki ka Atta" />
+        </div>
+        <div class="form-group" style="display:flex; align-items:flex-end;">
+          <button class="btn primary" onclick="addProduct()" style="width:100%">
+            <i class="fa fa-plus"></i> Add
+          </button>
+        </div>
+      </div>
+
+      <div id="productsList" class="product-list"></div>
+    </div>
   </section>
 
 </main>
