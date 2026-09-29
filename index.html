@@ -9,7 +9,6 @@
 </head>
 <body>
 
-<!-- TOP BAR -->
 <div class="topbar">
   <div class="topbar-logo">
     <i class="fa fa-wheat-awn"></i>
@@ -25,7 +24,6 @@
   </div>
 </div>
 
-<!-- SIDEBAR (sirf extra pages) -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <i class="fa fa-wheat-awn"></i>
@@ -50,10 +48,8 @@
   </nav>
 </aside>
 
-<!-- MAIN -->
 <main class="main" id="main">
 
-  <!-- ========== DASHBOARD (BIG BUTTONS) ========== -->
   <section id="dashboard" class="page active">
     <div class="page-header">
       <div>
@@ -62,7 +58,6 @@
       </div>
     </div>
 
-    <!-- BIG MAIN BUTTONS -->
     <div class="big-buttons">
       <button class="big-btn new-order" onclick="showPage('neworder')">
         <i class="fa fa-plus-circle"></i>
@@ -76,7 +71,6 @@
       </button>
     </div>
 
-    <!-- STATS -->
     <div class="cards">
       <div class="card blue">
         <div class="card-icon"><i class="fa fa-users"></i></div>
@@ -108,7 +102,6 @@
       </div>
     </div>
 
-    <!-- AAJ KA LOAD -->
     <div class="box">
       <div class="box-head">
         <h2><i class="fa fa-truck"></i> Aaj Ka Load</h2>
@@ -118,7 +111,6 @@
     </div>
   </section>
 
-  <!-- ========== NEW ORDER ========== -->
   <section id="neworder" class="page">
     <div class="page-header">
       <button class="btn back-btn" onclick="showPage('dashboard')">
@@ -162,7 +154,6 @@
     </div>
   </section>
 
-  <!-- ========== ORDERS / LOADING ========== -->
   <section id="orders" class="page">
     <div class="page-header">
       <button class="btn back-btn" onclick="showPage('dashboard')">
@@ -185,7 +176,6 @@
     <div id="ordersList" class="list"></div>
   </section>
 
-  <!-- ========== SHOPKEEPERS ========== -->
   <section id="shopkeepers" class="page">
     <div class="page-header">
       <h1>Shopkeepers</h1>
@@ -216,7 +206,6 @@
     <div id="shopkeepersList" class="list"></div>
   </section>
 
-  <!-- ========== DELIVERY ========== -->
   <section id="delivery" class="page">
     <div class="page-header">
       <h1>Delivery</h1>
@@ -225,7 +214,6 @@
     <div id="deliveryList" class="list"></div>
   </section>
 
-  <!-- ========== HISTORY ========== -->
   <section id="history" class="page">
     <div class="page-header">
       <h1>Order History</h1>
@@ -240,7 +228,6 @@
     <div id="historyList" class="list"></div>
   </section>
 
-  <!-- ========== SETTINGS ========== -->
   <section id="settings" class="page">
     <div class="page-header">
       <h1>Settings</h1>
@@ -288,12 +275,28 @@
 
 </main>
 
-<!-- MODAL -->
+<!-- MODAL: Shop History -->
 <div id="modal" class="modal">
   <div class="modal-content">
     <span class="close" onclick="closeModal()">&times;</span>
     <h2 id="modalTitle">Order History</h2>
     <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- MODAL: Partial Delivery -->
+<div id="deliverModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeDeliverModal()">&times;</span>
+    <h2 id="deliverTitle">Delivery</h2>
+    <p class="hint" id="deliverSubtitle">Kitna maal deliver hua? (Khaali chhor dein to poora deliver hoga)</p>
+    <div id="deliverBody"></div>
+    <button class="btn primary big" onclick="confirmDelivery()">
+      <i class="fa fa-check"></i> Delivered Confirm Karein
+    </button>
+    <button class="btn big" onclick="markAllDelivered()">
+      <i class="fa fa-check-double"></i> Poora Deliver (Bina quantity daale)
+    </button>
   </div>
 </div>
 
