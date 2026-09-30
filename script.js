@@ -561,13 +561,12 @@ function renderDashboard() {
   document.getElementById('pendingOrders').textContent = orders.filter(function(o) { return o.status === 'Pending' || o.status === 'Partial'; }).length;
   document.getElementById('deliveredOrders').textContent = orders.filter(function(o) { return o.status === 'Delivered'; }).length;
 
-  // ** SHOPKEEPER LIST - pending orders wale **
   var pendingByShop = {};
   for (var i = 0; i < orders.length; i++) {
     var o = orders[i];
     if (o.status !== 'Pending' && o.status !== 'Partial') continue;
     var sid = o.shopId;
-    if (!pendingByShop[sid]) pendingByShop[sid] = { totalKg: 0, oldestDate: null, orderCount: 0 };
+    if (!pendingByShop[sid]) pendingByShop[sid] = { totalKg: 0 };
     var ordKg = 0;
     for (var j = 0; j < o.items.length; j++) {
       var it = o.items[j];
@@ -576,54 +575,43 @@ function renderDashboard() {
       ordKg += (remM * 40) + remK;
     }
     pendingByShop[sid].totalKg += ordKg;
-    pendingByShop[sid].orderCount++;
-    if (!pendingByShop[sid].oldestDate || o.date < pendingByShop[sid].oldestDate) {
-      pendingByShop[sid].oldestDate = o.date;
-    }
   }
 
   var shopList = document.getElementById('todayShopList');
   var keys = Object.keys(pendingByShop);
-
   document.getElementById('todayShopCount').textContent = keys.length;
 
   if (keys.length === 0) {
     shopList.innerHTML = '<div class="empty"><i class="fa fa-check-circle"></i>Koi pending order nahi!</div>';
-    return;
+  } else {
+    var html = '';
+    for (var k = 0; k < keys.length; k++) {
+      var shopId = keys[k];
+      var shop = null;
+      for (var i = 0; i < shopkeepers.length; i++) {
+        if (shopkeepers[i].id == shopId) shop = shopkeepers[i];
+      }
+      if (!shop) continue;
+      html += '<div class="shop-tap-card" onclick="openShopOrder(\'' + shopId + '\')">' +
+        '<div class="shop-tap-info">' +
+          '<h4><i class="fa fa-store"></i> ' + shop.name + '</h4>' +
+        '</div>' +
+        '<i class="fa fa-chevron-right" style="color:#94a3b8;"></i>' +
+      '</div>';
+    }
+    shopList.innerHTML = html;
   }
 
-  keys.sort(function(a, b) {
-    return pendingByShop[a].oldestDate.localeCompare(pendingByShop[b].oldestDate);
-  });
-
-  var html = '';
-  for (var k = 0; k < keys.length; k++) {
-    var shopId = keys[k];
-    var shop = null;
-    for (var i = 0; i < shopkeepers.length; i++) {
-      if (shopkeepers[i].id == shopId) shop = shopkeepers[i];
-    }
-    if (!shop) continue;
-    var info = pendingByShop[shopId];
-    var daysOld = daysBetween(info.oldestDate);
-    var isOld = daysOld > 0;
-    var dateNote = '';
-    if (isOld) {
-      dateNote = '<p class="p-old-date">📅 ' + formatDate(info.oldestDate) + ' (' + daysOld + ' din purana)</p>';
-    }
-    html += '<div class="shop-tap-card" onclick="openShopOrder(\'' + shopId + '\')">' +
-      '<div class="shop-tap-info">' +
-        '<h4><i class="fa fa-store"></i> ' + shop.name + '</h4>' +
-        '<p><i class="fa fa-phone"></i> ' + shop.mobile + '</p>' +
-        dateNote +
-      '</div>' +
-      '<span class="shop-tap-qty ' + (isOld ? 'has-old' : '') + '">' + totalKgText(info.totalKg) + '</span>' +
-    '</div>';
+  // Total Load Update
+  var totalLoadKg = 0;
+  var allKeys = Object.keys(pendingByShop);
+  for (var i = 0; i < allKeys.length; i++) {
+    totalLoadKg += pendingByShop[allKeys[i]].totalKg;
   }
-  shopList.innerHTML = html;
+  var loadText = document.getElementById('totalLoadText');
+  if (loadText) loadText.textContent = totalKgText(totalLoadKg);
 }
 
-// ** Shop tap -> order modal **
 function openShopOrder(shopId) {
   currentShopOrderId = shopId;
   var shop = null;
@@ -1287,7 +1275,6 @@ function autoShiftOldOrders(callback) {
     }
   }
   if (toShift.length === 0) { if (callback) callback(); return; }
-
   var doneCount = 0;
   for (var i = 0; i < toShift.length; i++) {
     var o = toShift[i];
