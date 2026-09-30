@@ -111,14 +111,41 @@ h3 { font-size: 15px; color: #1e293b; margin-bottom: 10px; }
 h4 { font-size: 13px; }
 .section-title { color: #16a34a; margin: 12px 0 10px; font-size: 14px; }
 
-/* ========== DASHBOARD LAYOUT (SIDE BY SIDE) ========== */
+/* ========== TOTAL LOAD BANNER ========== */
+.total-load-banner {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+  padding: 18px 20px;
+  border-radius: 14px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.3);
+}
+.total-load-banner p {
+  font-size: 14px;
+  opacity: 0.95;
+  margin-bottom: 4px;
+}
+.total-load-banner h2 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+}
+.total-load-icon {
+  font-size: 40px;
+  opacity: 0.4;
+}
+
+/* ========== DASHBOARD LAYOUT ========== */
 .dash-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-/* LEFT: Shop List */
 .shop-list-tap {
   display: flex;
   flex-direction: column;
@@ -129,12 +156,13 @@ h4 { font-size: 13px; }
   background: #fff;
   border: 2px solid #e2e8f0;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 14px 16px;
   cursor: pointer;
   transition: 0.2s;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
 }
 .shop-tap-card:hover {
   border-color: #16a34a;
@@ -142,30 +170,9 @@ h4 { font-size: 13px; }
   transform: translateX(3px);
 }
 .shop-tap-card:active { transform: scale(0.98); }
-.shop-tap-info h4 { font-size: 13px; color: #1e293b; margin-bottom: 2px; display: flex; align-items: center; gap: 5px; font-weight: 700; }
-.shop-tap-info h4 i { color: #16a34a; font-size: 12px; }
-.shop-tap-info p { font-size: 11px; color: #64748b; }
-.shop-tap-info .p-old-date {
-  color: #dc2626;
-  font-size: 10px;
-  font-weight: 600;
-  margin-top: 3px;
-}
-.shop-tap-qty {
-  background: #16a34a;
-  color: #fff;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-weight: 700;
-  font-size: 11px;
-  align-self: flex-start;
-  white-space: nowrap;
-}
-.shop-tap-qty.has-old {
-  background: #dc2626;
-}
+.shop-tap-info h4 { font-size: 15px; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.shop-tap-info h4 i { color: #16a34a; font-size: 13px; }
 
-/* RIGHT: Quick Buttons + Stats */
 .quick-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -199,7 +206,6 @@ h4 { font-size: 13px; }
 .quick-card.orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
 .quick-card.gray { background: linear-gradient(135deg, #64748b, #475569); }
 
-/* Stats Mini */
 .stats-mini {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -391,7 +397,6 @@ h4 { font-size: 13px; }
 
 .item-actions { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 
-/* ========== PERMISSION CHIPS ========== */
 .perm-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .perm-chip {
   background: #dcfce7; color: #166534;
@@ -488,14 +493,21 @@ h4 { font-size: 13px; }
 .deliver-qty-row label { font-size: 11px; }
 .deliver-qty-row input { padding: 9px; font-size: 13px; }
 
-/* ========== MOBILE (Auto) ========== */
+/* ========== MOBILE ========== */
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); width: 240px; }
   .sidebar.open { transform: translateX(0); }
   .main { margin-left: 0; padding: 12px; }
   .menu-btn { display: flex; align-items: center; justify-content: center; }
 
-  /* Dashboard side-by-side */
+  .total-load-banner {
+    padding: 14px 16px !important;
+    margin-bottom: 10px !important;
+  }
+  .total-load-banner p { font-size: 12px !important; }
+  .total-load-banner h2 { font-size: 22px !important; }
+  .total-load-icon { font-size: 30px !important; }
+
   .dash-layout {
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
@@ -521,10 +533,13 @@ h4 { font-size: 13px; }
   .mini-card h4 { font-size: 14px !important; }
   .mini-card p { font-size: 9px !important; }
 
-  .shop-tap-card { padding: 8px 10px !important; }
-  .shop-tap-info h4 { font-size: 12px !important; }
-  .shop-tap-info p { font-size: 10px !important; }
-  .shop-tap-qty { padding: 3px 8px !important; font-size: 10px !important; }
+  .shop-tap-card {
+    padding: 12px 14px !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .shop-tap-info h4 { font-size: 14px !important; margin: 0 !important; }
 
   .box { padding: 10px !important; }
   .box-head h2 { font-size: 13px !important; }
@@ -543,25 +558,16 @@ h4 { font-size: 13px; }
   .load-summary { flex-direction: column; text-align: center; }
 }
 
-/* ========== VERY SMALL PHONES ========== */
 @media (max-width: 380px) {
-  .quick-card {
-    padding: 8px 6px !important;
-    min-height: 50px !important;
-    font-size: 9px !important;
-  }
+  .quick-card { padding: 8px 6px !important; min-height: 50px !important; font-size: 9px !important; }
   .quick-card i { font-size: 14px !important; }
   .quick-card span { font-size: 9px !important; }
-
   .mini-card { padding: 6px !important; }
   .mini-card i { width: 24px !important; height: 24px !important; font-size: 11px !important; }
   .mini-card h4 { font-size: 12px !important; }
   .mini-card p { font-size: 8px !important; }
-
-  .shop-tap-info h4 { font-size: 11px !important; }
-  .shop-tap-info p { font-size: 9px !important; }
-  .shop-tap-qty { font-size: 9px !important; padding: 2px 6px !important; }
-
+  .shop-tap-info h4 { font-size: 12px !important; }
   .box-head h2 { font-size: 12px !important; }
   .page-header h1 { font-size: 16px !important; }
+  .total-load-banner h2 { font-size: 18px !important; }
 }
